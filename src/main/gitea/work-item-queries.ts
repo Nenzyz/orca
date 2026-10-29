@@ -199,11 +199,16 @@ export async function listGiteaWorkItems(
       localGitOptions
     ),
     issuesState === null
-      ? Promise.resolve({
-          items: [] as GiteaWorkItem[],
+      ? Promise.resolve<{
+          items: GiteaWorkItem[]
+          totalCount: number
+          totalPages: number
+          error: ClassifiedError | undefined
+        }>({
+          items: [],
           totalCount: 0,
           totalPages: 0,
-          error: undefined as ClassifiedError | undefined
+          error: undefined
         })
       : listGiteaIssues(
           repoPath,
