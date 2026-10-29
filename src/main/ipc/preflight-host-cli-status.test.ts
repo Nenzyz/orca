@@ -108,6 +108,7 @@ vi.mock('../gitea/client', () => ({
 }))
 
 import { _resetPreflightCache, runPreflightCheck } from '../preflight/agent-detection'
+import { queueHostCliProbe } from './preflight-host-cli-probe-queue'
 import { registerPreflightHandlers } from './preflight'
 import {
   defaultAzureDevOpsStatus,
@@ -151,14 +152,16 @@ describe('preflight', () => {
     })
   })
 
-  // Sequential version probes precede concurrent gh/glab auth checks; fixtures supply all five responses.
+  // Sequential version probes precede concurrent gh/glab/tea auth checks.
   it('marks gh as authenticated when gh auth status exits successfully', async () => {
     execFileAsyncMock
       .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'glab version 1.92.1\n' })
+      .mockResolvedValueOnce({ stdout: 'tea version 0.9.0\n' })
       .mockResolvedValueOnce({ stdout: 'github.com\n  - Active account: true\n' })
       .mockResolvedValueOnce({ stdout: 'Logged in to gitlab.com\n' })
+      .mockResolvedValueOnce({ stdout: '[]\n' })
 
     const status = await runPreflightCheck()
 
@@ -166,16 +169,17 @@ describe('preflight', () => {
       git: { installed: true },
       gh: { installed: true, authenticated: true },
       glab: { installed: true, authenticated: true },
+      tea: { installed: true, authenticated: false },
       bitbucket: defaultBitbucketStatus,
       azureDevOps: defaultAzureDevOpsStatus,
       gitea: defaultGiteaStatus
     })
-    expect(execFileAsyncMock).toHaveBeenNthCalledWith(4, 'gh', ['auth', 'status'], {
+    expect(execFileAsyncMock).toHaveBeenNthCalledWith(5, 'gh', ['auth', 'status'], {
       encoding: 'utf-8',
       timeout: 5000,
       windowsHide: true
     })
-    expect(execFileAsyncMock).toHaveBeenNthCalledWith(5, 'glab', ['auth', 'status'], {
+    expect(execFileAsyncMock).toHaveBeenNthCalledWith(6, 'glab', ['auth', 'status'], {
       encoding: 'utf-8',
       timeout: 5000,
       windowsHide: true
@@ -296,7 +300,8 @@ describe('preflight', () => {
     const status = await runPreflightCheck()
 
     expect(status.gh).toEqual({ installed: false, authenticated: false })
-    expect(execFileAsyncMock).toHaveBeenCalledTimes(5)
+    expect(status.tea).toEqual({ installed: false, authenticated: false })
+    expect(execFileAsyncMock).toHaveBeenCalledTimes(6)
   })
 
   it('marks glab as not installed when `glab --version` fails', async () => {
@@ -304,13 +309,15 @@ describe('preflight', () => {
       .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
       .mockRejectedValueOnce(new Error('command not found: glab'))
+      .mockRejectedValueOnce(new Error('command not found: tea'))
       .mockResolvedValueOnce({ stdout: 'github.com\n  - Active account: true\n' })
 
     const status = await runPreflightCheck()
 
     expect(status.glab).toEqual({ installed: false, authenticated: false })
+    expect(status.tea).toEqual({ installed: false, authenticated: false })
     // An absent glab must not generate a misleading auth command failure.
-    expect(execFileAsyncMock).toHaveBeenCalledTimes(4)
+    expect(execFileAsyncMock).toHaveBeenCalledTimes(5)
   })
 
   it('marks glab as installed but unauthenticated when auth status fails', async () => {
@@ -318,8 +325,10 @@ describe('preflight', () => {
       .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'glab version 1.92.1\n' })
+      .mockResolvedValueOnce({ stdout: 'tea version 0.9.0\n' })
       .mockResolvedValueOnce({ stdout: 'github.com\n  - Active account: true\n' })
       .mockRejectedValueOnce({ stderr: 'You are not logged into any GitLab hosts.\n' })
+      .mockResolvedValueOnce({ stdout: '[]\n' })
 
     const status = await runPreflightCheck()
 
@@ -520,8 +529,8 @@ describe('preflight', () => {
       })
 
       const stalePending = runPreflightCheck(false, { wslDistro: 'Ubuntu' })
-      // The running-distro gate resolves first; hold the stale git/gh/glab probes before refreshing.
-      await expect.poll(() => runWslProcessMock.mock.calls.length).toBe(3)
+      // The running-distro gate resolves first; hold the stale git/gh/glab/tea probes before refreshing.
+      await expect.poll(() => runWslProcessMock.mock.calls.length).toBe(4)
       phase = 'fresh'
       const fresh = await runPreflightCheck(true, { wslDistro: 'Ubuntu' })
       expect(fresh.git).toEqual({ installed: true })
@@ -661,24 +670,15 @@ describe('preflight', () => {
   })
 
   it('re-runs the probe when forced so updated gh auth state is visible without relaunch', async () => {
-    execFileAsyncMock
-      .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
-      .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
-      .mockResolvedValueOnce({ stdout: 'glab version 1.92.1\n' })
-      .mockRejectedValueOnce({ stderr: 'You are not logged into any GitHub hosts.\n' })
-      .mockResolvedValueOnce({ stdout: 'Logged in to gitlab.com\n' })
-      .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
-      .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
-      .mockResolvedValueOnce({ stdout: 'glab version 1.92.1\n' })
-      .mockResolvedValueOnce({ stdout: 'github.com\n  - Active account: true\n' })
-      .mockResolvedValueOnce({ stdout: 'Logged in to gitlab.com\n' })
+    queueHostCliProbe(execFileAsyncMock, false)
+    queueHostCliProbe(execFileAsyncMock, true)
 
     const firstStatus = await runPreflightCheck()
     const refreshedStatus = await runPreflightCheck(true)
 
     expect(firstStatus.gh).toEqual({ installed: true, authenticated: false })
     expect(refreshedStatus.gh).toEqual({ installed: true, authenticated: true })
-    expect(execFileAsyncMock).toHaveBeenCalledTimes(10)
+    expect(execFileAsyncMock).toHaveBeenCalledTimes(14)
   })
 
   it.each(['linux', 'darwin'])(
@@ -818,8 +818,10 @@ describe('preflight', () => {
       .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'glab version 1.92.1\n' })
+      .mockResolvedValueOnce({ stdout: 'tea version 0.9.0\n' })
       .mockResolvedValueOnce({ stdout: 'github.com\n' })
       .mockResolvedValueOnce({ stdout: 'Logged in to gitlab.com\n' })
+      .mockResolvedValueOnce({ stdout: '[]\n' })
 
     registerPreflightHandlers()
 
@@ -829,6 +831,7 @@ describe('preflight', () => {
       git: { installed: true },
       gh: { installed: true, authenticated: true },
       glab: { installed: true, authenticated: true },
+      tea: { installed: true, authenticated: false },
       bitbucket: defaultBitbucketStatus,
       azureDevOps: defaultAzureDevOpsStatus,
       gitea: defaultGiteaStatus
@@ -840,13 +843,17 @@ describe('preflight', () => {
       .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'glab version 1.92.1\n' })
+      .mockResolvedValueOnce({ stdout: 'tea version 0.9.0\n' })
       .mockRejectedValueOnce({ stderr: 'You are not logged into any GitHub hosts.\n' })
       .mockResolvedValueOnce({ stdout: 'Logged in to gitlab.com\n' })
+      .mockResolvedValueOnce({ stdout: '[]\n' })
       .mockResolvedValueOnce({ stdout: 'git version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'gh version 2.0.0\n' })
       .mockResolvedValueOnce({ stdout: 'glab version 1.92.1\n' })
+      .mockResolvedValueOnce({ stdout: 'tea version 0.9.0\n' })
       .mockResolvedValueOnce({ stdout: 'github.com\n  - Active account: true\n' })
       .mockResolvedValueOnce({ stdout: 'Logged in to gitlab.com\n' })
+      .mockResolvedValueOnce({ stdout: '[]\n' })
 
     registerPreflightHandlers()
 
@@ -857,6 +864,7 @@ describe('preflight', () => {
       git: { installed: true },
       gh: { installed: true, authenticated: false },
       glab: { installed: true, authenticated: true },
+      tea: { installed: true, authenticated: false },
       bitbucket: defaultBitbucketStatus,
       azureDevOps: defaultAzureDevOpsStatus,
       gitea: defaultGiteaStatus
@@ -865,6 +873,7 @@ describe('preflight', () => {
       git: { installed: true },
       gh: { installed: true, authenticated: true },
       glab: { installed: true, authenticated: true },
+      tea: { installed: true, authenticated: false },
       bitbucket: defaultBitbucketStatus,
       azureDevOps: defaultAzureDevOpsStatus,
       gitea: defaultGiteaStatus
