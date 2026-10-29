@@ -208,7 +208,7 @@ async function loadActionJobs(repo: GiteaRepoRef, headSha: string): Promise<Gite
 async function loadCommitStatuses(
   repo: GiteaRepoRef,
   headSha: string
-): Promise<GiteaPipelineJob[]> {
+): Promise<Record<string, unknown>[]> {
   const page = await readListedRecords(
     repo,
     repoResource(repo, `/commits/${encodeURIComponent(headSha)}/statuses`),
