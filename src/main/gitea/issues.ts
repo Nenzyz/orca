@@ -7,6 +7,8 @@ import { mapGiteaIssueInfo, type GiteaIssueInfo, type RawGiteaIssue } from './ma
 import type { LocalGitExecOptions } from './repository-ref'
 import { parseTeaPaginationTotal } from './tea-api-response'
 
+export { addGiteaIssueComment, createGiteaIssue } from './issue-create'
+
 export type GiteaIssueListState = 'opened' | 'closed' | 'all'
 
 export type GiteaIssueListResult = {
