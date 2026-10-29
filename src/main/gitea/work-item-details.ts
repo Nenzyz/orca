@@ -1,5 +1,6 @@
 import type { MRComment } from '../../shared/gitlab-types'
 import type { IssueSourcePreference } from '../../shared/repo-types'
+import { fetchGiteaPipelineJobs, type GiteaPipelineJob } from './actions-job-graph'
 import { requestGiteaJson } from './client'
 import { resolveGiteaIssueSource } from './gitea-issue-source-resolution'
 import { mapGiteaIssueInfo, mapGiteaIssueInfoToWorkItem, type RawGiteaIssue } from './mappers'
@@ -32,6 +33,7 @@ export type GiteaWorkItemDetails = {
   reviewers?: GiteaAssignableUser[]
   approvalState?: GiteaApprovalState
   assignees?: string[]
+  pipelineJobs?: GiteaPipelineJob[]
 }
 
 type ReviewLoad = {
@@ -144,6 +146,11 @@ async function fetchPullDetails(
   const approval = includeReviewDetails
     ? giteaReviewersAndApproval(raw.requested_reviewers, review.reviews)
     : null
+  const pipelineJobs = headSha
+    ? await fetchGiteaPipelineJobs(repo, headSha, connectionId, localGitOptions).catch(() =>
+        emptyPipelineJobs()
+      )
+    : undefined
   return {
     item: withoutRepoId(item),
     body: raw.body ?? '',
@@ -152,8 +159,13 @@ async function fetchPullDetails(
     ...(baseSha ? { baseSha } : {}),
     files: review.files,
     reviewers: approval?.reviewers ?? [],
-    ...(approval ? { approvalState: approval.approvalState } : {})
+    ...(approval ? { approvalState: approval.approvalState } : {}),
+    ...(pipelineJobs !== undefined ? { pipelineJobs } : {})
   }
+}
+
+function emptyPipelineJobs(): GiteaPipelineJob[] {
+  return []
 }
 
 export async function getGiteaWorkItemDetails(

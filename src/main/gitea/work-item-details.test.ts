@@ -4,12 +4,14 @@ const {
   requestGiteaJsonMock,
   requestGiteaTextMock,
   resolveGiteaIssueSourceMock,
-  getTeaKnownLoginsMock
+  getTeaKnownLoginsMock,
+  fetchGiteaPipelineJobsMock
 } = vi.hoisted(() => ({
   requestGiteaJsonMock: vi.fn(),
   requestGiteaTextMock: vi.fn(),
   resolveGiteaIssueSourceMock: vi.fn(),
-  getTeaKnownLoginsMock: vi.fn()
+  getTeaKnownLoginsMock: vi.fn(),
+  fetchGiteaPipelineJobsMock: vi.fn()
 }))
 
 vi.mock('./client', () => ({
@@ -23,6 +25,10 @@ vi.mock('./gitea-issue-source-resolution', () => ({
 
 vi.mock('./gitea-known-host-probe', () => ({
   getTeaKnownLogins: getTeaKnownLoginsMock
+}))
+
+vi.mock('./actions-job-graph', () => ({
+  fetchGiteaPipelineJobs: fetchGiteaPipelineJobsMock
 }))
 
 import { getGiteaWorkItemDetails } from './work-item-details'
@@ -117,6 +123,8 @@ describe('getGiteaWorkItemDetails', () => {
     resolveGiteaIssueSourceMock.mockResolvedValue({ source: repo, fellBack: false })
     getTeaKnownLoginsMock.mockResolvedValue([])
     requestGiteaTextMock.mockResolvedValue('')
+    fetchGiteaPipelineJobsMock.mockReset()
+    fetchGiteaPipelineJobsMock.mockResolvedValue([])
   })
 
   it('assembles issue body, assignees, and timeline comments', async () => {
@@ -193,6 +201,7 @@ describe('getGiteaWorkItemDetails', () => {
         }
       ]
     })
+    expect(fetchGiteaPipelineJobsMock).not.toHaveBeenCalled()
   })
 
   it('deduplicates PR reviews by latest submission and loads files on the full path', async () => {
@@ -346,6 +355,58 @@ describe('getGiteaWorkItemDetails', () => {
     expect(fast?.reviewers).toEqual([])
     expect(fast?.approvalState).toBeUndefined()
     expect(fast?.headSha).toBe('head-sha')
+    expect(details?.pipelineJobs).toEqual([])
+    expect(fast?.pipelineJobs).toEqual([])
+    expect(fetchGiteaPipelineJobsMock).toHaveBeenCalledWith(repo, 'head-sha', undefined, {})
+  })
+
+  it('attaches Actions jobs for the pull request head', async () => {
+    const pipelineJobs = [
+      {
+        id: 41,
+        runId: 9,
+        name: 'test',
+        stage: 'CI',
+        status: 'success',
+        webUrl: 'https://git.example.com/team/widgets/actions/runs/9/jobs/41',
+        duration: 90
+      }
+    ]
+    fetchGiteaPipelineJobsMock.mockResolvedValue(pipelineJobs)
+    requestGiteaJsonMock.mockImplementation(async (_repo: unknown, path: string) => {
+      if (path === '/repos/team/widgets/pulls/8') {
+        return {
+          number: 8,
+          title: 'Add widget',
+          state: 'open',
+          html_url: 'https://git.example.com/team/widgets/pulls/8',
+          updated_at: '2026-05-05T00:00:00Z',
+          user: { login: 'octo' },
+          head: { ref: 'feature', sha: 'head-sha', repo: { full_name: 'team/widgets' } },
+          base: { ref: 'main', sha: 'base-sha', repo: { full_name: 'team/widgets' } }
+        }
+      }
+      if (path === '/repos/team/widgets/issues/8/comments') {
+        return []
+      }
+      throw new Error(`unexpected Gitea path: ${path}`)
+    })
+
+    const details = await getGiteaWorkItemDetails(
+      '/repo',
+      8,
+      'pr',
+      undefined,
+      'conn-1',
+      null,
+      {},
+      {
+        includeReviewDetails: false
+      }
+    )
+
+    expect(details?.pipelineJobs).toEqual(pipelineJobs)
+    expect(fetchGiteaPipelineJobsMock).toHaveBeenCalledWith(repo, 'head-sha', 'conn-1', {})
   })
 
   it('returns null when the repository cannot be resolved', async () => {

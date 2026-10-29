@@ -162,41 +162,71 @@ export async function requestGiteaJson<T>(
   }
 }
 
+export type GiteaTextResult = {
+  status: number
+  text: string | null
+}
+
+async function requestTeaText(
+  repo: GiteaRepoRef,
+  path: string,
+  options: GiteaJsonRequestOptions
+): Promise<GiteaTextResult> {
+  const response = await teaApiWithHeaders(
+    [...teaRepoArgs(repo), teaRequestPath(path, options.searchParams)],
+    { timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS }
+  )
+  if (response.status < 200 || response.status >= 300) {
+    return { status: response.status, text: null }
+  }
+  return { status: response.status, text: response.body }
+}
+
+async function requestHttpText(
+  repo: GiteaRepoRef,
+  path: string,
+  options: GiteaJsonRequestOptions
+): Promise<GiteaTextResult> {
+  const token = directApiToken()
+  const response = await fetch(
+    apiUrl(configuredGiteaApiBaseUrl(repo), path, options.searchParams),
+    {
+      headers: {
+        Accept: 'text/plain',
+        ...(token ? { Authorization: `token ${token}` } : {})
+      },
+      signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS)
+    }
+  )
+  if (!response.ok) {
+    await cancelUnreadResponseBody(response)
+    return { status: response.status, text: null }
+  }
+  return { status: response.status, text: await response.text() }
+}
+
+/** Status stays visible so a missing Actions log (HTTP 404) is not the same as a transport failure. */
+export async function requestGiteaTextResult(
+  repo: GiteaRepoRef,
+  path: string,
+  options: GiteaJsonRequestOptions = {}
+): Promise<GiteaTextResult> {
+  try {
+    return prefersTeaApi(repo)
+      ? await requestTeaText(repo, path, options)
+      : await requestHttpText(repo, path, options)
+  } catch {
+    return { status: 0, text: null }
+  }
+}
+
 export async function requestGiteaText(
   repo: GiteaRepoRef,
   path: string,
   options: GiteaJsonRequestOptions = {}
 ): Promise<string | null> {
-  try {
-    if (prefersTeaApi(repo)) {
-      const response = await teaApiWithHeaders(
-        [...teaRepoArgs(repo), teaRequestPath(path, options.searchParams)],
-        { timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS }
-      )
-      if (response.status < 200 || response.status >= 300) {
-        return null
-      }
-      return response.body
-    }
-    const token = directApiToken()
-    const response = await fetch(
-      apiUrl(configuredGiteaApiBaseUrl(repo), path, options.searchParams),
-      {
-        headers: {
-          Accept: 'text/plain',
-          ...(token ? { Authorization: `token ${token}` } : {})
-        },
-        signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS)
-      }
-    )
-    if (!response.ok) {
-      await cancelUnreadResponseBody(response)
-      return null
-    }
-    return await response.text()
-  } catch {
-    return null
-  }
+  const result = await requestGiteaTextResult(repo, path, options)
+  return result.text
 }
 
 export async function requestGiteaJsonWithHeaders<T>(

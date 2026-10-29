@@ -24,7 +24,8 @@ export {
   normalizeGiteaApiBaseUrl,
   requestGiteaJson,
   requestGiteaJsonWithHeaders,
-  requestGiteaText
+  requestGiteaText,
+  requestGiteaTextResult
 } from './gitea-json-request'
 
 const REQUEST_TIMEOUT_MS = 5000
