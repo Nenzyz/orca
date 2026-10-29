@@ -26,7 +26,7 @@ export type RawGiteaPullRequest = {
 
 export type GiteaWorkItem = {
   id: string
-  type: 'pr'
+  type: 'issue' | 'pr'
   number: number
   title: string
   state: GiteaPullRequestInfo['state']
