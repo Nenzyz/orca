@@ -1,28 +1,51 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { gitExecFileAsyncMock } = vi.hoisted(() => ({
-  gitExecFileAsyncMock: vi.fn()
+const { gitExecFileAsyncMock, teaExecFileAsyncMock } = vi.hoisted(() => ({
+  gitExecFileAsyncMock: vi.fn(),
+  teaExecFileAsyncMock: vi.fn()
 }))
 
 vi.mock('../git/runner', () => ({
-  gitExecFileAsync: gitExecFileAsyncMock
+  gitExecFileAsync: gitExecFileAsyncMock,
+  teaExecFileAsync: teaExecFileAsyncMock
 }))
 
 import {
   _getGiteaRepoRefCacheSize,
   _resetGiteaRepoRefCache,
   getGiteaRepoRef,
-  parseGiteaRepoRef
+  getGiteaRepoRefForRemote,
+  parseGiteaRepoRef,
+  teaRepoArgs
 } from './repository-ref'
+import { _resetTeaKnownHostsCache } from './gitea-known-host-probe'
 import { REMOTE_URL_PROBE_TIMEOUT_MS } from '../git/remote-url-probe'
+
+const OLD_ENV = process.env
+
+const WORK_LOGIN = {
+  name: 'work',
+  url: 'https://gitea.example.com:3000/gitea',
+  ssh_host: 'ssh.gitea.example.com:2222',
+  user: 'octo',
+  default: true
+}
 
 describe('Gitea repository ref parsing', () => {
   beforeEach(() => {
+    process.env = { ...OLD_ENV }
+    delete process.env.ORCA_GITEA_API_BASE_URL
+    delete process.env.GITEA_INSTANCE_URL
     gitExecFileAsyncMock.mockReset()
+    teaExecFileAsyncMock.mockReset()
+    teaExecFileAsyncMock.mockRejectedValue(new Error('tea missing'))
     _resetGiteaRepoRefCache()
+    _resetTeaKnownHostsCache()
   })
 
-  afterEach(() => {})
+  afterEach(() => {
+    process.env = OLD_ENV
+  })
 
   it('parses HTTPS remotes and derives the API base URL', () => {
     expect(parseGiteaRepoRef('https://git.example.com/team/project.git')).toEqual({
@@ -132,5 +155,148 @@ describe('Gitea repository ref parsing', () => {
     }
 
     expect(_getGiteaRepoRefCacheSize()).toBe(512)
+  })
+
+  it('matches a custom SSH host and web subpath to the tea login', async () => {
+    teaExecFileAsyncMock.mockResolvedValue({
+      stdout: JSON.stringify([WORK_LOGIN]),
+      stderr: ''
+    })
+    gitExecFileAsyncMock.mockResolvedValue({
+      stdout: 'ssh://git@ssh.gitea.example.com:2222/gitea/team/project.git\n',
+      stderr: ''
+    })
+
+    const repoRef = await getGiteaRepoRefForRemote('/repo', 'origin')
+
+    expect(repoRef).toEqual({
+      host: 'gitea.example.com',
+      owner: 'team',
+      repo: 'project',
+      apiBaseUrl: 'https://gitea.example.com:3000/gitea/api/v1',
+      webBaseUrl: 'https://gitea.example.com:3000/gitea',
+      loginName: 'work'
+    })
+    expect(teaRepoArgs(repoRef!)).toEqual(['--repo', 'team/project', '--login', 'work'])
+  })
+
+  it('matches an HTTPS remote on the login URL port and subpath', async () => {
+    teaExecFileAsyncMock.mockResolvedValue({
+      stdout: JSON.stringify([WORK_LOGIN]),
+      stderr: ''
+    })
+    gitExecFileAsyncMock.mockResolvedValue({
+      stdout: 'https://gitea.example.com:3000/gitea/team/project.git\n',
+      stderr: ''
+    })
+
+    await expect(getGiteaRepoRefForRemote('/repo', 'origin')).resolves.toEqual({
+      host: 'gitea.example.com',
+      owner: 'team',
+      repo: 'project',
+      apiBaseUrl: 'https://gitea.example.com:3000/gitea/api/v1',
+      webBaseUrl: 'https://gitea.example.com:3000/gitea',
+      loginName: 'work'
+    })
+  })
+
+  it('matches an scp remote whose host is the login SSH hostname', async () => {
+    teaExecFileAsyncMock.mockResolvedValue({
+      stdout: JSON.stringify([WORK_LOGIN]),
+      stderr: ''
+    })
+    gitExecFileAsyncMock.mockResolvedValue({
+      stdout: 'git@ssh.gitea.example.com:gitea/team/project.git\n',
+      stderr: ''
+    })
+
+    await expect(getGiteaRepoRefForRemote('/repo', 'origin')).resolves.toMatchObject({
+      owner: 'team',
+      repo: 'project',
+      webBaseUrl: 'https://gitea.example.com:3000/gitea',
+      loginName: 'work'
+    })
+  })
+
+  it('does not treat GitHub Enterprise or self-hosted GitLab as Gitea when a login is configured', async () => {
+    teaExecFileAsyncMock.mockResolvedValue({
+      stdout: JSON.stringify([WORK_LOGIN]),
+      stderr: ''
+    })
+
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'https://github.company.com/org/repo.git\n',
+      stderr: ''
+    })
+    await expect(getGiteaRepoRefForRemote('/ghe', 'origin')).resolves.toBeNull()
+
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'https://gitlab.company.com/group/project.git\n',
+      stderr: ''
+    })
+    await expect(getGiteaRepoRefForRemote('/gitlab', 'origin')).resolves.toBeNull()
+  })
+
+  it('rejects a login web host when the HTTP port or subpath differs', async () => {
+    teaExecFileAsyncMock.mockResolvedValue({
+      stdout: JSON.stringify([WORK_LOGIN]),
+      stderr: ''
+    })
+
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'https://gitea.example.com/gitea/team/project.git\n',
+      stderr: ''
+    })
+    await expect(getGiteaRepoRefForRemote('/port', 'origin')).resolves.toBeNull()
+
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'https://gitea.example.com:3000/other/team/project.git\n',
+      stderr: ''
+    })
+    await expect(getGiteaRepoRefForRemote('/subpath', 'origin')).resolves.toBeNull()
+  })
+
+  it('uses the instance URL host and omits --login when tea has no stored login', async () => {
+    process.env.ORCA_GITEA_API_BASE_URL = 'https://git.example.com:3000/api/v1'
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'https://git.example.com:3000/team/project.git\n',
+      stderr: ''
+    })
+
+    const repoRef = await getGiteaRepoRefForRemote('/repo', 'origin')
+
+    expect(repoRef).toMatchObject({
+      host: 'git.example.com',
+      owner: 'team',
+      repo: 'project',
+      webBaseUrl: 'https://git.example.com:3000'
+    })
+    expect(repoRef?.loginName ?? null).toBeNull()
+    expect(teaRepoArgs(repoRef!)).toEqual(['--repo', 'team/project'])
+
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'https://git.example.com/team/project.git\n',
+      stderr: ''
+    })
+    await expect(getGiteaRepoRefForRemote('/other-port', 'origin')).resolves.toBeNull()
+  })
+
+  it('matches GITEA_INSTANCE_URL when the Orca API base is unset and rejects other forges', async () => {
+    process.env.GITEA_INSTANCE_URL = 'https://codeberg.org'
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'git@codeberg.org:team/project.git\n',
+      stderr: ''
+    })
+    await expect(getGiteaRepoRefForRemote('/repo', 'origin')).resolves.toMatchObject({
+      host: 'codeberg.org',
+      owner: 'team',
+      repo: 'project'
+    })
+
+    gitExecFileAsyncMock.mockResolvedValueOnce({
+      stdout: 'https://gitlab.company.com/group/project.git\n',
+      stderr: ''
+    })
+    await expect(getGiteaRepoRefForRemote('/gitlab', 'origin')).resolves.toBeNull()
   })
 })
