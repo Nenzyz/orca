@@ -45,6 +45,20 @@ function primeGitExecWithDefaultBranch(defaultRef = 'refs/remotes/origin/main'):
   })
 }
 
+function authorizationHeader(headers: HeadersInit | undefined): string | undefined {
+  if (!headers) {
+    return undefined
+  }
+  if (headers instanceof Headers) {
+    return headers.get('Authorization') ?? undefined
+  }
+  if (Array.isArray(headers)) {
+    const match = headers.find((pair) => pair[0]?.toLowerCase() === 'authorization')
+    return match?.[1]
+  }
+  return headers.Authorization ?? headers.authorization
+}
+
 function giteaPr(index = 7, branch = 'feature/gitea') {
   return {
     number: index,
@@ -158,7 +172,7 @@ describe('Gitea client', () => {
       if (!init) {
         throw new Error('expected request init')
       }
-      expect((init.headers as Record<string, string>).Authorization).toBe('token gitea-token')
+      expect(authorizationHeader(init.headers)).toBe('token gitea-token')
       if (parsed.pathname.endsWith('/commits/abc123/status')) {
         return Response.json({ state: 'success' })
       }
@@ -562,7 +576,7 @@ describe('Gitea client', () => {
       }
       throw new Error(`tea api should not run: ${args.join(' ')}`)
     })
-    const fetchMock = vi.fn(async (url: string) => {
+    const fetchMock = vi.fn(async (url: string, _init?: RequestInit) => {
       if (String(url).includes('/status')) {
         return Response.json({ state: 'pending' })
       }
@@ -576,7 +590,7 @@ describe('Gitea client', () => {
     })
     expect(fetchMock).toHaveBeenCalled()
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain('/api/v1/repos/team/repo/pulls/7')
-    const init = fetchMock.mock.calls[0]?.[1] as RequestInit
-    expect((init.headers as Record<string, string>).Authorization).toBe('token instance-token')
+    const init = fetchMock.mock.calls[0]?.[1]
+    expect(authorizationHeader(init?.headers)).toBe('token instance-token')
   })
 })
