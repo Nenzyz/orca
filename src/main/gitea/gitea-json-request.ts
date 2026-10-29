@@ -81,7 +81,7 @@ async function requestTeaJson<T>(
     [...teaRepoArgs(repo), teaRequestPath(path, options.searchParams)],
     { timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS }
   )
-  const data = response.body.trim().length > 0 ? (JSON.parse(response.body) as T) : null
+  const data = parseJsonBody<T>(response.body)
   return { data, headers: response.headers, status: response.status }
 }
 
@@ -105,11 +105,20 @@ async function requestHttpJson<T>(
     await cancelUnreadResponseBody(response)
     return { data: null, headers: responseHeaderRecord(response), status: response.status }
   }
+  const data: T = await response.json()
   return {
-    data: (await response.json()) as T,
+    data,
     headers: responseHeaderRecord(response),
     status: response.status
   }
+}
+
+function parseJsonBody<T>(body: string): T | null {
+  if (body.trim().length === 0) {
+    return null
+  }
+  const data: T = JSON.parse(body)
+  return data
 }
 
 function failedRequest(
@@ -149,6 +158,43 @@ export async function requestGiteaJson<T>(
     if (throwOnFailure) {
       throw error
     }
+    return null
+  }
+}
+
+export async function requestGiteaText(
+  repo: GiteaRepoRef,
+  path: string,
+  options: GiteaJsonRequestOptions = {}
+): Promise<string | null> {
+  try {
+    if (prefersTeaApi(repo)) {
+      const response = await teaApiWithHeaders(
+        [...teaRepoArgs(repo), teaRequestPath(path, options.searchParams)],
+        { timeout: options.timeoutMs ?? REQUEST_TIMEOUT_MS }
+      )
+      if (response.status < 200 || response.status >= 300) {
+        return null
+      }
+      return response.body
+    }
+    const token = directApiToken()
+    const response = await fetch(
+      apiUrl(configuredGiteaApiBaseUrl(repo), path, options.searchParams),
+      {
+        headers: {
+          Accept: 'text/plain',
+          ...(token ? { Authorization: `token ${token}` } : {})
+        },
+        signal: AbortSignal.timeout(options.timeoutMs ?? REQUEST_TIMEOUT_MS)
+      }
+    )
+    if (!response.ok) {
+      await cancelUnreadResponseBody(response)
+      return null
+    }
+    return await response.text()
+  } catch {
     return null
   }
 }

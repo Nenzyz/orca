@@ -23,7 +23,8 @@ import { cancelUnreadResponseBody } from '../lib/unread-response-body'
 export {
   normalizeGiteaApiBaseUrl,
   requestGiteaJson,
-  requestGiteaJsonWithHeaders
+  requestGiteaJsonWithHeaders,
+  requestGiteaText
 } from './gitea-json-request'
 
 const REQUEST_TIMEOUT_MS = 5000
@@ -103,7 +104,8 @@ async function requestJsonAtBase<T>(
       }
       return null
     }
-    return (await response.json()) as T
+    const data: T = await response.json()
+    return data
   } catch (error) {
     if (throwOnFailure) {
       throw error

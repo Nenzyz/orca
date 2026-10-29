@@ -88,7 +88,7 @@ function loginMatchesHost(login: TeaKnownLogin, host: string): boolean {
   }
 }
 
-async function repoRefForProject(
+export async function repoRefForProject(
   projectRef: GiteaProjectRef,
   connectionId?: string | null,
   localGitOptions: LocalGitExecOptions = {}

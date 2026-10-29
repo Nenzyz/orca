@@ -18,8 +18,11 @@ export type RawGiteaPullRequest = {
     sha?: string | null
     repo?: { full_name?: string | null } | null
   } | null
+  body?: string | null
+  requested_reviewers?: unknown
   base?: {
     ref?: string | null
+    sha?: string | null
     repo?: { full_name?: string | null } | null
   } | null
 }
