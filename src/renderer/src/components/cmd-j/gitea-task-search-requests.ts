@@ -20,8 +20,8 @@ export function createCmdJGiteaTaskSearchRequests(args: {
   const state = useAppStore.getState()
   const requests: CmdJTaskSearchRequest[] = []
   for (const repo of getTaskEligibleRepos(args.repos)) {
-    // Why: Gitea has no task-page provider, so it is searched for every repo whose host can run `tea`.
-    const source = getTaskPageRepoSourceContext(repo, 'github')
+    // Why: Gitea is searched for every repo whose host can run `tea`, regardless of visible providers.
+    const source = getTaskPageRepoSourceContext(repo, 'gitea')
     if (!source) {
       continue
     }

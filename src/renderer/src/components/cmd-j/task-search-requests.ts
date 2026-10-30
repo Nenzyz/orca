@@ -30,7 +30,7 @@ import { makeCmdJTaskSearchResult, type CmdJTaskSearchResult } from './task-sear
 const RESULT_LIMIT = 12
 export type CmdJTaskSearchRequest = {
   id: string
-  provider: TaskProvider | 'gitea'
+  provider: TaskProvider
   hostLabel: string
   run: () => Promise<CmdJTaskSearchResult[]>
 }
