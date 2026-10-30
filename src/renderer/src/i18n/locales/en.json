@@ -19025,6 +19025,11 @@
       },
       "runtimeGitWorkingTreeClient": {
         "resolveConflictNeedsNewerHost": "Resolving conflicts needs a newer Orca on this host. Update Orca on that host."
+      },
+      "giteaJobTraceClient": {
+        "loadFailed": "Failed to load the Gitea job log.",
+        "timedOut": "Timed out loading the Gitea job log.",
+        "emptyTrace": "No log is available for this Gitea job."
       }
     },
     "ssh": {
