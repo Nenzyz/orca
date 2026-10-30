@@ -236,6 +236,22 @@ export const WorktreeResolvePrBase = z.object({
   wakeWslDistro: OptionalBoolean
 })
 
+export const WorktreeResolveGiteaPrBase = z.object({
+  repo: z
+    .unknown()
+    .transform((v) => (typeof v === 'string' ? v : ''))
+    .pipe(z.string().min(1, 'Missing repo selector')),
+  prNumber: z
+    .unknown()
+    .transform((v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0))
+    .pipe(z.number().int().positive('Missing PR number')),
+  headRefName: OptionalString,
+  baseRefName: OptionalString,
+  isCrossRepository: OptionalBoolean,
+  /** The user creating from the PR; older hosts drop it. */
+  wakeWslDistro: OptionalBoolean
+})
+
 export const WorktreeResolveMrBase = z.object({
   repo: z
     .unknown()

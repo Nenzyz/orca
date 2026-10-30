@@ -8,6 +8,8 @@ import { getAzureDevOpsAuthStatus } from '../azure-devops/client'
 import { getBitbucketAuthStatus } from '../bitbucket/client'
 import { getGiteaAuthStatus } from '../gitea/client'
 import { parseTeaLoginStatus } from '../gitea/gitea-known-host-probe'
+import { _resetTeaKnownHostsCache } from '../gitea/gitea-known-host-probe'
+import { _resetGiteaRepoRefCache } from '../gitea/repository-ref'
 import { _resetKnownHostsCache } from '../gitlab/gl-utils'
 import { mergePersistedWindowsPathAsync } from '../pty/windows-environment-path'
 import type { WslPreflightTarget } from '../ipc/preflight-wsl-agent-detection'
@@ -301,6 +303,8 @@ async function executePreflightCheck(
   if (force) {
     // Refresh GitLab host discovery too, or self-hosted login stays invisible until relaunch.
     _resetKnownHostsCache()
+    _resetTeaKnownHostsCache()
+    _resetGiteaRepoRefCache()
   }
 
   const [gitProbe, ghProbe, glabProbe, teaProbe] = await Promise.all([

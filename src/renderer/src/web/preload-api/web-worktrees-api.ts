@@ -139,6 +139,22 @@ export function createWorktreesApi(): NonNullable<Partial<PreloadApi>['worktrees
         isCrossRepository,
         ...(wakeWslDistro ? { wakeWslDistro } : {})
       }),
+    resolveGiteaPrBase: async ({
+      repoId,
+      prNumber,
+      headRefName,
+      baseRefName,
+      isCrossRepository,
+      wakeWslDistro
+    }) =>
+      callRuntimeResult('worktree.resolveGiteaPrBase', {
+        repo: repoId,
+        prNumber,
+        headRefName,
+        baseRefName,
+        isCrossRepository,
+        ...(wakeWslDistro ? { wakeWslDistro } : {})
+      }),
     resolveMrBase: async ({
       repoId,
       mrIid,

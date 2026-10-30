@@ -23039,6 +23039,13 @@
         "rerunRejected": "Could not rerun checks — {{detail}}",
         "rerunFailed": "Failed to rerun checks: {{detail}}"
       },
+      "gitea": {
+        "projectUnresolved": "Could not resolve Gitea repository for this checkout",
+        "unexpectedResponse": "Unexpected response from Gitea",
+        "rateLimited": "Gitea rate limit hit. Try again in a few minutes.",
+        "issuePermissionDenied": "You don't have permission to edit this issue. Check your Gitea token scopes.",
+        "jobLogFailed": "Failed to load the job log: {{detail}}"
+      },
       "gitlab": {
         "projectUnresolved": "Could not resolve GitLab project for this repository",
         "unexpectedResponse": "Unexpected response from GitLab",
@@ -23063,6 +23070,11 @@
         "prHeadBranchMissing": "PR #{{number}} has no head branch.",
         "forkHeadUnresolved": "Could not resolve fork PR #{{number}} head after fetch.",
         "headShaEmpty": "Empty SHA resolving PR #{{number}} head."
+      },
+      "gitea": {
+        "prNotFound": "PR #{{number}} not found.",
+        "prHeadBranchMissing": "PR #{{number}} has no head branch.",
+        "forkHeadUnresolved": "Could not resolve fork PR #{{number}} head after fetch."
       },
       "gitlab": {
         "projectNotFound": "No GitLab project found for this repository.",
