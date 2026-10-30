@@ -1,5 +1,6 @@
 import { forgeOwnerHostIdForWorkspace } from '@/runtime/forge-credential-target'
 import { gitLabApiFor } from '@/runtime/gitlab-owner-api'
+import { giteaApiFor } from '@/runtime/gitea-owner-api'
 import React, { useCallback, useEffect, useRef } from 'react'
 import { ENTRY_REFRESH_GRACE_MS, shouldEntryRefresh } from '../checks-entry-refresh'
 import { refreshHostedReviewCard } from '@/store/slices/hosted-review-card-refresh'
@@ -15,6 +16,8 @@ import { codeHostErrorText } from '@/lib/code-host-error-copy'
 type ChecksPanelEntryRefreshAndTitleActionsInput = Pick<
   ChecksPanelContextState,
   | 'activeGitLabReview'
+  | 'activeGiteaReview'
+  | 'isGiteaReviewContext'
   | 'activeReview'
   | 'clearTitleInputFocusTimer'
   | 'fallbackGitHubPRNumber'
@@ -51,7 +54,7 @@ type ChecksPanelEntryRefreshAndTitleActionsInput = Pick<
     | 'titleInputRef'
   > &
   Pick<ChecksPanelReviewState, 'checksFetchedAt' | 'commentsFetchedAt' | 'prFetchedAt'> &
-  Pick<ChecksPanelPollingState, 'fetchChecks' | 'fetchGitLabDetails'> &
+  Pick<ChecksPanelPollingState, 'fetchChecks' | 'fetchGitLabDetails' | 'fetchGiteaDetails'> &
   Pick<ChecksPanelReviewDataState, 'fetchComments'>
 
 export function useChecksPanelEntryRefreshAndTitleActions(
@@ -59,6 +62,7 @@ export function useChecksPanelEntryRefreshAndTitleActions(
 ) {
   const {
     activeGitLabReview,
+    activeGiteaReview,
     activeReview,
     activeWorktree,
     activeWorktreeId,
@@ -71,11 +75,13 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     fetchChecks,
     fetchComments,
     fetchGitLabDetails,
+    fetchGiteaDetails,
     fetchHostedReviewForBranch,
     fetchPRForBranch,
     hostedReviewCacheKey,
     isFolder,
     isGitLabReviewContext,
+    isGiteaReviewContext,
     isPanelVisible,
     linkedAzureDevOpsPR,
     linkedBitbucketPR,
@@ -103,7 +109,7 @@ export function useChecksPanelEntryRefreshAndTitleActions(
         return
       }
       // Tab entry is automatic: preserve rate-limit guards and force only panes already known stale.
-      if (isGitLabReviewContext) {
+      if (isGitLabReviewContext || isGiteaReviewContext) {
         void fetchHostedReviewForBranch(repo.path, branch, {
           force: true,
           repoId: repo.id,
@@ -118,6 +124,8 @@ export function useChecksPanelEntryRefreshAndTitleActions(
         // Entering the tab is a user act: it may start a stopped WSL distro (E9).
         if (activeGitLabReview) {
           void fetchGitLabDetails()
+        } else if (activeGiteaReview) {
+          void fetchGiteaDetails()
         }
         return
       }
@@ -131,6 +139,7 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     },
     [
       activeGitLabReview,
+      activeGiteaReview,
       activeWorktree?.head,
       activeWorktreeId,
       branch,
@@ -139,8 +148,10 @@ export function useChecksPanelEntryRefreshAndTitleActions(
       fetchChecks,
       fetchComments,
       fetchGitLabDetails,
+      fetchGiteaDetails,
       fetchHostedReviewForBranch,
       isGitLabReviewContext,
+      isGiteaReviewContext,
       linkedAzureDevOpsPR,
       linkedBitbucketPR,
       linkedGiteaPR,
@@ -153,7 +164,7 @@ export function useChecksPanelEntryRefreshAndTitleActions(
   // Check freshness on tab entry to catch external changes before TTL expiry; see docs/refresh-on-checks-tab.md.
   const entryKey =
     isPanelVisible && repo && !isFolder && branch
-      ? `${activeWorktreeId ?? ''}::${activeGitLabReview ? hostedReviewCacheKey : prCacheKey}`
+      ? `${activeWorktreeId ?? ''}::${activeGitLabReview || activeGiteaReview ? hostedReviewCacheKey : prCacheKey}`
       : ''
   const lastEntryKeyRef = useRef<string>('')
   useEffect(() => {
@@ -204,7 +215,7 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     if (!repo || !branch) {
       return
     }
-    if (activeReview?.provider === 'gitlab') {
+    if (activeReview?.provider === 'gitlab' || activeReview?.provider === 'gitea') {
       const refreshedReview = await refreshHostedReviewCard(fetchHostedReviewForBranch, {
         repoPath: repo.path,
         repoId: repo.id,
@@ -218,10 +229,18 @@ export function useChecksPanelEntryRefreshAndTitleActions(
       })
       const refreshedGitLabReview =
         refreshedReview?.provider === 'gitlab' ? refreshedReview : activeGitLabReview
-      if (refreshedGitLabReview) {
+      const refreshedGiteaReview =
+        refreshedReview?.provider === 'gitea' ? refreshedReview : activeGiteaReview
+      if (activeReview.provider === 'gitlab' && refreshedGitLabReview) {
         await fetchGitLabDetails({
           mrNumberOverride: refreshedGitLabReview.number,
           headShaOverride: refreshedGitLabReview.headSha,
+          commitAsCurrent: true
+        })
+      } else if (activeReview.provider === 'gitea' && refreshedGiteaReview) {
+        await fetchGiteaDetails({
+          prNumberOverride: refreshedGiteaReview.number,
+          headShaOverride: refreshedGiteaReview.headSha,
           commitAsCurrent: true
         })
       }
@@ -247,11 +266,13 @@ export function useChecksPanelEntryRefreshAndTitleActions(
     })
   }, [
     activeGitLabReview,
+    activeGiteaReview,
     activeReview?.provider,
     activeWorktreeId,
     branch,
     fallbackGitHubPRNumber,
     fetchGitLabDetails,
+    fetchGiteaDetails,
     fetchHostedReviewForBranch,
     fetchPRForBranch,
     linkedAzureDevOpsPR,
@@ -306,6 +327,22 @@ export function useChecksPanelEntryRefreshAndTitleActions(
         const result = await gitLabApiFor(selector).updateMR({
           ...selector,
           iid: activeReview.number,
+          updates: { title: nextTitle }
+        })
+        if (!result.ok) {
+          toast.error(codeHostErrorText(result))
+          return
+        }
+        await refreshHostedReviewAfterMutation()
+      } else if (activeReview.provider === 'gitea') {
+        const selector = {
+          repoPath: repo.path,
+          repoId: repo.id,
+          repoOwnerExecutionHostId: forgeOwnerHostIdForWorkspace(repo, activeWorktree)
+        }
+        const result = await giteaApiFor(selector).updatePR({
+          ...selector,
+          number: activeReview.number,
           updates: { title: nextTitle }
         })
         if (!result.ok) {

@@ -14,6 +14,7 @@ import type { ChecksPanelContextState } from './use-checks-panel-context-state'
 import type { ChecksPanelReviewState } from './use-checks-panel-review-state'
 import { checksPanelAsyncResultKey } from '../checks-panel-async-result-key'
 import { resolveGitLabMRDiscussionForChecks } from './gitlab-review-client'
+import { resolveGiteaPRDiscussionForChecks } from './gitea-review-client'
 import {
   checksPanelReviewStableKey,
   clearPendingPRCommentAiAck
@@ -45,13 +46,14 @@ type ChecksPanelCommentResolutionInput = Pick<
 > &
   Pick<
     ChecksPanelContextState,
-    'activeGitLabReview' | 'activeReview' | 'pr' | 'prCacheKey' | 'prNumber'
+    'activeGitLabReview' | 'activeGiteaReview' | 'activeReview' | 'pr' | 'prCacheKey' | 'prNumber'
   > &
   Pick<ChecksPanelReviewState, 'sourceControlAiActionsVisible'>
 
 export function useChecksPanelCommentResolution(model: ChecksPanelCommentResolutionInput) {
   const {
     activeGitLabReview,
+    activeGiteaReview,
     activeReview,
     activeWorktree,
     activeWorktreeId,
@@ -92,6 +94,29 @@ export function useChecksPanelCommentResolution(model: ChecksPanelCommentResolut
           repoPath: repo.path,
           repoId: repo.id,
           iid: activeGitLabReview.number,
+          discussionId: threadId,
+          resolved: resolve,
+          repoOwnerExecutionHostId: forgeOwnerHostIdForWorkspace(repo, activeWorktree)
+        })
+        if (!result.ok) {
+          rollbackThread(previousThreadComments)
+          if (notifyOnFailure) {
+            toast.error(codeHostErrorText(result))
+          }
+          return false
+        }
+        return true
+      }
+      if (repo && activeGiteaReview) {
+        let previousThreadComments: PRComment[] = []
+        setComments((prev) => {
+          previousThreadComments = prev.filter((comment) => comment.threadId === threadId)
+          return markPRCommentThreadResolved(prev, threadId, resolve)
+        })
+        const result = await resolveGiteaPRDiscussionForChecks({
+          repoPath: repo.path,
+          repoId: repo.id,
+          number: activeGiteaReview.number,
           discussionId: threadId,
           resolved: resolve,
           repoOwnerExecutionHostId: forgeOwnerHostIdForWorkspace(repo, activeWorktree)
@@ -149,6 +174,7 @@ export function useChecksPanelCommentResolution(model: ChecksPanelCommentResolut
     },
     [
       activeGitLabReview,
+      activeGiteaReview,
       asyncResultKeyRef,
       branch,
       pr?.headSha,
@@ -231,7 +257,9 @@ export function useChecksPanelCommentResolution(model: ChecksPanelCommentResolut
               ? 'Open a GitHub PR before resolving comments.'
               : activeReview.provider === 'gitlab' && !activeGitLabReview
                 ? 'Open a GitLab MR before resolving comments.'
-                : undefined
+                : activeReview.provider === 'gitea' && !activeGiteaReview
+                  ? 'Open a Gitea PR before resolving comments.'
+                  : undefined
   return {
     handleResolve,
     canTargetPRComments,

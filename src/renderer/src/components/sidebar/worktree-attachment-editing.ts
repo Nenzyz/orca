@@ -230,7 +230,7 @@ export function canUseWorkspaceReviewForChecks(
               host === 'ssh.dev.azure.com' ||
               host?.endsWith('.visualstudio.com')
             ? 'azure-devops'
-            : host === 'codeberg.org'
+            : host === 'codeberg.org' || item.provider === 'gitea'
               ? 'gitea'
               : undefined)
   if (provider && item.provider !== provider) {
