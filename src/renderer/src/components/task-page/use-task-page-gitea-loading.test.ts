@@ -33,7 +33,9 @@ const localRepo: Repo = {
 const giteaApi = {
   listIssues: vi.fn(),
   listPRs: vi.fn(),
-  notifications: vi.fn()
+  notifications: vi.fn(),
+  listLabels: vi.fn(),
+  listAssignableUsers: vi.fn()
 }
 
 type LoadingInput = Parameters<typeof useTaskPageGiteaLoading>[0]
@@ -52,6 +54,9 @@ function loadingInput(overrides: Partial<LoadingInput> = {}): LoadingInput {
     setGiteaNotifications: vi.fn(),
     setGiteaNotificationsLoading: vi.fn(),
     activeGiteaFilter: 'opened' as const,
+    giteaAssigneeFilter: '',
+    setGiteaLabels: vi.fn(),
+    setGiteaAssignableUsers: vi.fn(),
     ...overrides
   }
 }
@@ -74,6 +79,8 @@ beforeEach(() => {
   giteaApi.listIssues.mockReset().mockResolvedValue({ items: [] })
   giteaApi.listPRs.mockReset().mockResolvedValue({ items: [] })
   giteaApi.notifications.mockReset().mockResolvedValue([])
+  giteaApi.listLabels.mockReset().mockResolvedValue([])
+  giteaApi.listAssignableUsers.mockReset().mockResolvedValue([])
   Object.assign(window, { api: { gitea: giteaApi } })
 })
 
@@ -97,7 +104,7 @@ describe('useTaskPageGiteaLoading', () => {
     ])
   })
 
-  it('maps issues into work items and asks for the viewer’s issues on the assigned filter', async () => {
+  it('maps issues into work items and passes the state and assignee filters to the issue list', async () => {
     giteaApi.listIssues.mockResolvedValue({
       items: [
         {
@@ -113,12 +120,16 @@ describe('useTaskPageGiteaLoading', () => {
         }
       ]
     })
-    const input = loadingInput({ giteaView: 'issues', activeGiteaFilter: 'assigned-to-me' })
+    const input = loadingInput({
+      giteaView: 'issues',
+      activeGiteaFilter: 'closed',
+      giteaAssigneeFilter: 'sam'
+    })
     renderHook(() => useTaskPageGiteaLoading(input))
 
     await waitFor(() => expect(input.setGiteaItems).toHaveBeenCalled())
     expect(giteaApi.listIssues).toHaveBeenCalledWith(
-      expect.objectContaining({ assignee: '@me', state: 'opened', limit: 50 })
+      expect.objectContaining({ assignee: 'sam', state: 'closed', limit: 50 })
     )
     expect(input.setGiteaItems).toHaveBeenLastCalledWith([
       expect.objectContaining({
@@ -190,6 +201,26 @@ describe('useTaskPageGiteaLoading', () => {
     await waitFor(() => expect(input.setGiteaNotifications).toHaveBeenCalledWith([notification]))
     expect(giteaApi.listPRs).not.toHaveBeenCalled()
     expect(giteaApi.listIssues).not.toHaveBeenCalled()
+  })
+
+  it('loads repo labels and assignable users for the filter dropdowns', async () => {
+    giteaApi.listLabels.mockResolvedValue(['bug', 'ui'])
+    giteaApi.listAssignableUsers.mockResolvedValue([{ username: 'sam', name: null, avatarUrl: '' }])
+    const input = loadingInput({ giteaView: 'issues' })
+    renderHook(() => useTaskPageGiteaLoading(input))
+
+    await waitFor(() => expect(input.setGiteaLabels).toHaveBeenCalledWith(['bug', 'ui']))
+    expect(input.setGiteaAssignableUsers).toHaveBeenCalledWith([
+      { username: 'sam', name: null, avatarUrl: '' }
+    ])
+  })
+
+  it('leaves the dropdowns empty when label loading fails', async () => {
+    giteaApi.listLabels.mockRejectedValue(new Error('offline'))
+    const input = loadingInput()
+    renderHook(() => useTaskPageGiteaLoading(input))
+
+    await waitFor(() => expect(input.setGiteaLabels).toHaveBeenCalledWith([]))
   })
 
   it('does nothing while another provider is active', () => {

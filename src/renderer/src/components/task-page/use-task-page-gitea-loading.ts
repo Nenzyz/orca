@@ -7,17 +7,14 @@ import { getRepoExecutionHostId } from '../../../../shared/execution-host'
 import type { ClassifiedError } from '../../../../shared/classified-error'
 import type { GiteaWorkItem } from '../../../../shared/gitea-types'
 import type { GiteaRepoSelectorArgs } from '../../../../preload/api/gitea-api'
-import {
-  getTaskPageRepoSourceContext,
-  isGitLabIssueFilter,
-  isGitLabMRFilter
-} from './task-page-source-context'
+import { getTaskPageRepoSourceContext } from './task-page-source-context'
+import { isGiteaStateFilterValidFor } from './gitea/gitea-task-filters'
 import { giteaIssueToWorkItem } from './gitea/gitea-task-items'
 
 // Leave headroom below the runtime RPC foreground concurrency of eight for sidebar and other callers.
 export const GITEA_TASK_FETCH_CONCURRENCY = 6
 
-function giteaTaskRepoSelector(repo: Repo): GiteaRepoSelectorArgs {
+export function giteaTaskRepoSelector(repo: Repo): GiteaRepoSelectorArgs {
   return {
     repoPath: repo.path,
     repoId: repo.id,
@@ -40,6 +37,9 @@ type GiteaLoadingInput = Pick<
   | 'setGiteaNotifications'
   | 'setGiteaNotificationsLoading'
   | 'activeGiteaFilter'
+  | 'giteaAssigneeFilter'
+  | 'setGiteaLabels'
+  | 'setGiteaAssignableUsers'
 >
 
 type RepoFetchResult = {
@@ -61,21 +61,17 @@ export function useTaskPageGiteaLoading<Model extends GiteaLoadingInput>(model: 
     giteaView,
     setGiteaNotifications,
     setGiteaNotificationsLoading,
-    activeGiteaFilter
+    activeGiteaFilter,
+    giteaAssigneeFilter,
+    setGiteaLabels,
+    setGiteaAssignableUsers
   } = model
   // Fetch issues and PRs separately so a failure stays scoped to its tab.
   useEffect(() => {
     if (taskSource !== 'gitea' || giteaView === 'notifications') {
       return
     }
-    const activeIssueFilter =
-      giteaView === 'issues' && isGitLabIssueFilter(activeGiteaFilter) ? activeGiteaFilter : null
-    const activePRFilter =
-      giteaView === 'prs' && isGitLabMRFilter(activeGiteaFilter) ? activeGiteaFilter : null
-    if (
-      (giteaView === 'issues' && !activeIssueFilter) ||
-      (giteaView === 'prs' && !activePRFilter)
-    ) {
+    if (!isGiteaStateFilterValidFor(giteaView, activeGiteaFilter)) {
       return
     }
     if (selectedRepos.length === 0) {
@@ -92,8 +88,8 @@ export function useTaskPageGiteaLoading<Model extends GiteaLoadingInput>(model: 
       if (giteaView === 'issues') {
         const result = await giteaApiFor(selector).listIssues({
           ...selector,
-          state: 'opened',
-          assignee: activeIssueFilter === 'assigned-to-me' ? '@me' : undefined,
+          state: activeGiteaFilter === 'merged' ? 'all' : activeGiteaFilter,
+          assignee: giteaAssigneeFilter || undefined,
           limit: 50
         })
         return {
@@ -104,7 +100,7 @@ export function useTaskPageGiteaLoading<Model extends GiteaLoadingInput>(model: 
       }
       const result = await giteaApiFor(selector).listPRs({
         ...selector,
-        state: activePRFilter ?? 'opened',
+        state: activeGiteaFilter,
         page: 1,
         perPage: 50
       })
@@ -156,12 +152,37 @@ export function useTaskPageGiteaLoading<Model extends GiteaLoadingInput>(model: 
     taskSource,
     giteaView,
     activeGiteaFilter,
+    giteaAssigneeFilter,
     giteaRefreshNonce,
     selectedReposKey,
     setGiteaError,
     setGiteaItems,
     setGiteaLoading
   ])
+
+  // Labels and assignees feed the filter dropdowns; failures just leave them empty.
+  useEffect(() => {
+    if (taskSource !== 'gitea' || giteaView === 'notifications' || !primaryRepo?.path) {
+      setGiteaLabels([])
+      setGiteaAssignableUsers([])
+      return
+    }
+    let stale = false
+    const selector = giteaTaskRepoSelector(primaryRepo)
+    const api = giteaApiFor(selector)
+    void api
+      .listLabels(selector)
+      .then((labels) => !stale && setGiteaLabels(labels))
+      .catch(() => !stale && setGiteaLabels([]))
+    void api
+      .listAssignableUsers(selector)
+      .then((users) => !stale && setGiteaAssignableUsers(users))
+      .catch(() => !stale && setGiteaAssignableUsers([]))
+    return () => {
+      stale = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- primaryRepo identity changes every render; its id/path keys the fetch.
+  }, [taskSource, giteaView, primaryRepo?.id, primaryRepo?.path, giteaRefreshNonce])
 
   // Notifications are user-scoped and ignore repo/chip filters, so fetch them independently.
   useEffect(() => {

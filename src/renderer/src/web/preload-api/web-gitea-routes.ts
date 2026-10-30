@@ -15,6 +15,7 @@ export type WebGiteaRouteKey =
   | 'listLabels'
   | 'listAssignableUsers'
   | 'notifications'
+  | 'markNotificationRead'
   | 'workItemDetails'
   | 'closePR'
   | 'reopenPR'
@@ -45,6 +46,7 @@ export type WebGiteaRuntimeMethod =
   | 'gitea.listLabels'
   | 'gitea.listAssignableUsers'
   | 'gitea.notifications'
+  | 'gitea.markNotificationRead'
   | 'gitea.workItemDetails'
   | 'gitea.updatePRState'
   | 'gitea.mergePR'
@@ -74,6 +76,7 @@ export const GITEA_WEB_RPC_METHODS = {
   listLabels: 'gitea.listLabels',
   listAssignableUsers: 'gitea.listAssignableUsers',
   notifications: 'gitea.notifications',
+  markNotificationRead: 'gitea.markNotificationRead',
   workItemDetails: 'gitea.workItemDetails',
   closePR: 'gitea.updatePRState',
   reopenPR: 'gitea.updatePRState',

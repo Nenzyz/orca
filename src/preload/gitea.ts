@@ -53,6 +53,8 @@ export const giteaApi = {
   listAssignableUsers: (args: GiteaRepoSelectorArgs) =>
     ipcRenderer.invoke('gitea:listAssignableUsers', args),
   notifications: (args: GiteaRepoSelectorArgs) => ipcRenderer.invoke('gitea:notifications', args),
+  markNotificationRead: (args: GiteaRepoSelectorArgs & { notificationId: number }) =>
+    ipcRenderer.invoke('gitea:markNotificationRead', args),
   workItemDetails: (
     args: GiteaRepoSelectorArgs & {
       number: number

@@ -3173,7 +3173,14 @@
         "giteaNotificationType": "Type",
         "giteaNoNotifications": "No notifications. You’re all caught up!",
         "giteaSelectProject": "Select a project so we can authenticate to Gitea.",
-        "giteaSource": "Gitea"
+        "giteaSource": "Gitea",
+        "giteaFilterSearch": "Search title or #number",
+        "giteaFilterSearchLabel": "Search Gitea work items",
+        "giteaFilterAuthor": "Author",
+        "giteaFilterAssignee": "Assignee",
+        "giteaFilterLabel": "Label",
+        "giteaFilterAny": "Any {{filter}}",
+        "giteaMarkNotificationRead": "Mark as read"
       },
       "Terminal": {
         "73768427cf": "Close",

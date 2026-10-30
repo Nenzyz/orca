@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { requestGiteaJsonMock, resolveGiteaIssueSourceMock } = vi.hoisted(() => ({
-  requestGiteaJsonMock: vi.fn(),
-  resolveGiteaIssueSourceMock: vi.fn()
+const { requestGiteaJsonMock, resolveGiteaIssueSourceMock, runGiteaTeaCommandMock } = vi.hoisted(
+  () => ({
+    requestGiteaJsonMock: vi.fn(),
+    resolveGiteaIssueSourceMock: vi.fn(),
+    runGiteaTeaCommandMock: vi.fn()
+  })
+)
+
+vi.mock('./pull-request-mutation-transport', () => ({
+  directGiteaApiToken: () => null,
+  giteaAuthRequiredResult: () => ({ ok: false, error: 'auth required' }),
+  giteaWriteUsesTea: (r: { loginName?: string }) => Boolean(r.loginName),
+  runGiteaTeaCommand: runGiteaTeaCommandMock,
+  writeGiteaJson: vi.fn()
 }))
 
 vi.mock('./client', () => ({
@@ -13,7 +24,7 @@ vi.mock('./gitea-issue-source-resolution', () => ({
   resolveGiteaIssueSource: resolveGiteaIssueSourceMock
 }))
 
-import { listGiteaNotifications } from './notifications'
+import { listGiteaNotifications, markGiteaNotificationRead } from './notifications'
 
 const repo = {
   host: 'git.example.com',
@@ -112,5 +123,35 @@ describe('listGiteaNotifications', () => {
 
     await expect(listGiteaNotifications('/repo')).resolves.toEqual([])
     expect(requestGiteaJsonMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('markGiteaNotificationRead', () => {
+  beforeEach(() => {
+    runGiteaTeaCommandMock.mockReset()
+    resolveGiteaIssueSourceMock.mockReset()
+    resolveGiteaIssueSourceMock.mockResolvedValue({ source: repo, fellBack: false })
+  })
+
+  it('marks the thread read through tea', async () => {
+    runGiteaTeaCommandMock.mockResolvedValue({ ok: true, stdout: '' })
+
+    await expect(markGiteaNotificationRead('/repo', 11)).resolves.toEqual({ ok: true })
+    expect(runGiteaTeaCommandMock.mock.calls[0][0].slice(0, 4)).toEqual([
+      'api',
+      '-X',
+      'PATCH',
+      '/notifications/threads/11?to-status=read'
+    ])
+  })
+
+  it('surfaces tea failures and rejects invalid ids', async () => {
+    runGiteaTeaCommandMock.mockResolvedValue({ ok: false, error: 'boom' })
+
+    await expect(markGiteaNotificationRead('/repo', 11)).resolves.toEqual({
+      ok: false,
+      error: 'boom'
+    })
+    await expect(markGiteaNotificationRead('/repo', 0)).resolves.toMatchObject({ ok: false })
   })
 })

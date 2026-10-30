@@ -10,6 +10,12 @@ import type { GitLabWorkItem, GitLabTodo } from '../../../../shared/gitlab-types
 import type { GiteaNotification, GiteaWorkItem } from '../../../../shared/gitea-types'
 import { getRepoBackedTaskEmptyState } from './task-page-empty-state'
 import { isGitLabIssueFilter, isGitLabMRFilter } from './task-page-source-context'
+import { useTaskPageGiteaFilterState } from './use-task-page-gitea-filter-state'
+import {
+  filterGiteaWorkItems,
+  isGiteaStateFilterValidFor,
+  type GiteaStateFilter
+} from './gitea/gitea-task-filters'
 export function useTaskPageProviderState(model: TaskPageSourceAvailabilityModel) {
   const {
     settings,
@@ -101,7 +107,8 @@ export function useTaskPageProviderState(model: TaskPageSourceAvailabilityModel)
     }
     return gitlabItems
   }, [gitlabItems, gitlabView])
-  const [giteaFilter, setGiteaFilter] = useState<GitLabTaskFilter | GitLabIssueFilter>('opened')
+  const [giteaFilter, setGiteaFilter] = useState<GiteaStateFilter>('opened')
+  const giteaFilterState = useTaskPageGiteaFilterState()
   const [giteaItems, setGiteaItems] = useState<GiteaWorkItem[]>([])
   const [giteaLoading, setGiteaLoading] = useState(false)
   const [giteaError, setGiteaError] = useState<string | null>(null)
@@ -120,22 +127,21 @@ export function useTaskPageProviderState(model: TaskPageSourceAvailabilityModel)
     [giteaView, selectedRepos.length]
   )
   // Why: Issues and PRs expose different filter sets; repair before commit so fetches never run with the other view's filter.
-  const giteaFilterIsValid =
-    giteaView === 'issues'
-      ? isGitLabIssueFilter(giteaFilter)
-      : giteaView === 'prs'
-        ? isGitLabMRFilter(giteaFilter)
-        : true
+  const giteaFilterIsValid = isGiteaStateFilterValidFor(giteaView, giteaFilter)
   const activeGiteaFilter = giteaFilterIsValid ? giteaFilter : 'opened'
   if (!giteaFilterIsValid) {
     setGiteaFilter('opened')
   }
+  const { giteaItemFilters } = giteaFilterState
   const displayedGiteaItems = useMemo(
     () =>
       giteaView === 'notifications'
         ? giteaItems
-        : giteaItems.filter((item) => item.type === (giteaView === 'issues' ? 'issue' : 'pr')),
-    [giteaItems, giteaView]
+        : filterGiteaWorkItems(
+            giteaItems.filter((item) => item.type === (giteaView === 'issues' ? 'issue' : 'pr')),
+            giteaItemFilters
+          ),
+    [giteaItems, giteaView, giteaItemFilters]
   )
   const nextModel = model as typeof model & {
     taskSourceManuallyChangedRef: typeof taskSourceManuallyChangedRef
@@ -207,7 +213,7 @@ export function useTaskPageProviderState(model: TaskPageSourceAvailabilityModel)
   nextModel.gitlabFilterIsValid = gitlabFilterIsValid
   nextModel.activeGitlabFilter = activeGitlabFilter
   nextModel.displayedGitLabItems = displayedGitLabItems
-  const giteaModel = Object.assign(nextModel, {
+  const giteaModel = Object.assign(nextModel, giteaFilterState, {
     giteaFilter,
     setGiteaFilter,
     giteaItems,

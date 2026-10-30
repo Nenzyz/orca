@@ -8,6 +8,7 @@ import {
   GiteaRateLimit,
   IssuesList,
   JobTrace,
+  MarkNotificationRead,
   MergePr,
   PullRequestForBranch,
   PullRequestLookup,
@@ -139,6 +140,13 @@ export const GITEA_METHODS = [
     permission: 'workspace',
     params: RepoSelector,
     handler: async (params, { runtime }) => runtime.listGiteaRepoNotifications(params.repo)
+  }),
+  defineMethod({
+    name: 'gitea.markNotificationRead',
+    permission: 'workspace',
+    params: MarkNotificationRead,
+    handler: async (params, { runtime }) =>
+      runtime.markGiteaRepoNotificationRead(params.repo, params.notificationId)
   }),
   defineMethod({
     name: 'gitea.workItemDetails',

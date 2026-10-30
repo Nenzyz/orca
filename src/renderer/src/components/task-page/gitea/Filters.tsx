@@ -4,10 +4,18 @@ import { cn } from '@/lib/utils'
 import { translate } from '@/i18n/i18n'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { GiteaFilterSelect } from './FilterSelect'
 import { LoaderCircle, Plus, RefreshCw } from 'lucide-react'
 import type { GiteaTaskView } from '../task-page-localized-options'
 import { TaskPageProjectSourcePicker } from '../task-page-project-source-picker'
 import { TaskPageGiteaIssueDialog } from './IssueDialog'
+import {
+  giteaAssigneeOptions,
+  giteaAuthorOptions,
+  giteaLabelOptions,
+  giteaStateFiltersFor
+} from './gitea-task-filters'
 
 const GITEA_VIEWS: readonly GiteaTaskView[] = ['issues', 'prs', 'notifications']
 
@@ -28,7 +36,6 @@ export function TaskPageGiteaFilters({
   model: TaskPageComposerActionsModel
 }): React.JSX.Element | null {
   const {
-    gitLabIssueFilters,
     gitLabMRFilters,
     setGiteaFilter,
     giteaLoading,
@@ -37,10 +44,22 @@ export function TaskPageGiteaFilters({
     setGiteaView,
     giteaNotificationsLoading,
     activeGiteaFilter,
-    selectedRepos
+    selectedRepos,
+    giteaItems,
+    giteaItemFilters,
+    setGiteaItemFilters,
+    giteaAssigneeFilter,
+    setGiteaAssigneeFilter,
+    giteaLabels,
+    giteaAssignableUsers
   } = model
   const [newIssueOpen, setNewIssueOpen] = useState(false)
-  const filters = giteaView === 'issues' ? gitLabIssueFilters : gitLabMRFilters
+  const stateFilters = giteaStateFiltersFor(giteaView).map((id) => ({
+    id,
+    label: gitLabMRFilters.find((filter) => filter.id === id)?.label ?? id
+  }))
+  const setItemFilter = (patch: Partial<typeof giteaItemFilters>): void =>
+    setGiteaItemFilters((current) => ({ ...current, ...patch }))
   const refreshLabel =
     giteaView === 'notifications'
       ? translate('auto.components.TaskPage.giteaRefreshNotifications', 'Refresh notifications')
@@ -77,7 +96,7 @@ export function TaskPageGiteaFilters({
             <div className="flex flex-wrap gap-2">
               {giteaView === 'notifications'
                 ? null
-                : filters.map(({ id, label }) => (
+                : stateFilters.map(({ id, label }) => (
                     <button
                       key={id}
                       type="button"
@@ -96,6 +115,46 @@ export function TaskPageGiteaFilters({
                     </button>
                   ))}
             </div>
+            {giteaView === 'notifications' ? null : (
+              <>
+                <Input
+                  value={giteaItemFilters.search}
+                  onChange={(e) => setItemFilter({ search: e.target.value })}
+                  placeholder={translate(
+                    'auto.components.TaskPage.giteaFilterSearch',
+                    'Search title or #number'
+                  )}
+                  aria-label={translate(
+                    'auto.components.TaskPage.giteaFilterSearchLabel',
+                    'Search Gitea work items'
+                  )}
+                  className="h-7 w-44 text-xs"
+                />
+                <GiteaFilterSelect
+                  label={translate('auto.components.TaskPage.giteaFilterAuthor', 'Author')}
+                  value={giteaItemFilters.author}
+                  options={giteaAuthorOptions(giteaItems)}
+                  onChange={(author) => setItemFilter({ author })}
+                />
+                {giteaView === 'issues' ? (
+                  <GiteaFilterSelect
+                    label={translate('auto.components.TaskPage.giteaFilterAssignee', 'Assignee')}
+                    value={giteaAssigneeFilter}
+                    options={giteaAssigneeOptions(giteaAssignableUsers)}
+                    onChange={(assignee) => {
+                      setGiteaAssigneeFilter(assignee)
+                      setGiteaRefreshNonce((n) => n + 1)
+                    }}
+                  />
+                ) : null}
+                <GiteaFilterSelect
+                  label={translate('auto.components.TaskPage.giteaFilterLabel', 'Label')}
+                  value={giteaItemFilters.label}
+                  options={giteaLabelOptions(giteaItems, giteaLabels)}
+                  onChange={(label) => setItemFilter({ label })}
+                />
+              </>
+            )}
           </div>
           <div
             className="flex shrink-0 items-center gap-2"

@@ -8,7 +8,7 @@ import {
 import { addGiteaIssueComment, createGiteaIssue } from '../gitea/issue-create'
 import { updateGiteaIssue } from '../gitea/issue-update'
 import { getGiteaIssue, listGiteaIssues } from '../gitea/issues'
-import { listGiteaNotifications } from '../gitea/notifications'
+import { listGiteaNotifications, markGiteaNotificationRead } from '../gitea/notifications'
 import { listGiteaAssignableUsers, listGiteaLabels } from '../gitea/repo-label-and-assignee-lookup'
 import { listGiteaPullRequests } from '../gitea/pull-request-list'
 import { listGiteaWorkItems } from '../gitea/work-item-queries'
@@ -237,6 +237,19 @@ export function registerGiteaQueryHandlers(store: Store): void {
       ...localGitOptionArgs(store, repo)
     )
   })
+
+  ipcMain.handle(
+    'gitea:markNotificationRead',
+    async (_event, args: GiteaRepoSelectorArgs & { notificationId: number }) => {
+      const repo = assertRegisteredGiteaRepo(args, store)
+      return markGiteaNotificationRead(
+        repo.path,
+        args.notificationId,
+        repoConnectionId(repo),
+        ...localGitOptionArgs(store, repo)
+      )
+    }
+  )
 
   ipcMain.handle(
     'gitea:workItemDetails',

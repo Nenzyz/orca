@@ -93,6 +93,9 @@ export type GiteaApi = {
   listLabels: (args: GiteaRepoSelectorArgs) => Promise<string[]>
   listAssignableUsers: (args: GiteaRepoSelectorArgs) => Promise<GiteaAssignableUser[]>
   notifications: (args: GiteaRepoSelectorArgs) => Promise<GiteaNotification[]>
+  markNotificationRead: (
+    args: GiteaRepoSelectorArgs & { notificationId: number }
+  ) => Promise<GiteaMutationResult>
   workItemDetails: (
     args: GiteaRepoSelectorArgs & {
       number: number

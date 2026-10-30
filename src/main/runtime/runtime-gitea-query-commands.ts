@@ -10,7 +10,7 @@ import {
   getRateLimit
 } from '../gitea/gitea-auth-and-rate-limit'
 import { getGiteaIssue, listGiteaIssues } from '../gitea/issues'
-import { listGiteaNotifications } from '../gitea/notifications'
+import { listGiteaNotifications, markGiteaNotificationRead } from '../gitea/notifications'
 import { listGiteaAssignableUsers, listGiteaLabels } from '../gitea/repo-label-and-assignee-lookup'
 import { listGiteaPullRequests } from '../gitea/pull-request-list'
 import { listGiteaWorkItems } from '../gitea/work-item-queries'
@@ -155,6 +155,16 @@ export class RuntimeGiteaQueryCommands extends RuntimeGiteaCommandBase {
     const repo = await this.repo(repoSelector)
     return listGiteaNotifications(
       repo.path,
+      getRepoRoutingConnectionId(repo),
+      this.gitOptions(repo)
+    )
+  }
+
+  async markGiteaRepoNotificationRead(repoSelector: string, notificationId: number) {
+    const repo = await this.repo(repoSelector)
+    return markGiteaNotificationRead(
+      repo.path,
+      notificationId,
       getRepoRoutingConnectionId(repo),
       this.gitOptions(repo)
     )

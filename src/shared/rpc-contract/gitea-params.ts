@@ -7,6 +7,10 @@ export const RepoSelector = z.object({
   repo: requiredString('Missing repo selector')
 })
 
+export const MarkNotificationRead = RepoSelector.extend({
+  notificationId: z.number().int().positive()
+})
+
 export const EmptyParams = z.object({}).optional().default({})
 
 export const GiteaRateLimit = z

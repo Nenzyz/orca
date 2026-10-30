@@ -45,6 +45,11 @@ export function createRuntimeGiteaApi(transport: RuntimeGiteaTransport): WebGite
       route<GiteaApiResult<'listAssignableUsers'>>(GITEA_WEB_RPC_METHODS.listAssignableUsers, args),
     notifications: (args) =>
       route<GiteaApiResult<'notifications'>>(GITEA_WEB_RPC_METHODS.notifications, args),
+    markNotificationRead: (args) =>
+      route<GiteaApiResult<'markNotificationRead'>>(
+        GITEA_WEB_RPC_METHODS.markNotificationRead,
+        args
+      ),
     // The owner guard and background flag name a local host; the server resolves the repo itself.
     workItemDetails: ({ repoOwnerExecutionHostId: _owner, background: _background, ...args }) =>
       route<GiteaApiResult<'workItemDetails'>>(GITEA_WEB_RPC_METHODS.workItemDetails, args),

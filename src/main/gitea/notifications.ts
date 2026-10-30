@@ -1,6 +1,14 @@
 import { requestGiteaJson } from './client'
 import { resolveGiteaIssueSource } from './gitea-issue-source-resolution'
-import type { GiteaRepoRef, LocalGitExecOptions } from './repository-ref'
+import {
+  directGiteaApiToken,
+  giteaAuthRequiredResult,
+  giteaWriteUsesTea,
+  runGiteaTeaCommand,
+  writeGiteaJson,
+  type GiteaMutationResult
+} from './pull-request-mutation-transport'
+import { teaRepoArgs, type GiteaRepoRef, type LocalGitExecOptions } from './repository-ref'
 
 const NOTIFICATION_LIMIT = 50
 
@@ -89,4 +97,33 @@ export async function listGiteaNotifications(
   } catch {
     return []
   }
+}
+
+export async function markGiteaNotificationRead(
+  repoPath: string,
+  notificationId: number,
+  connectionId?: string | null,
+  localGitOptions: LocalGitExecOptions = {}
+): Promise<GiteaMutationResult> {
+  if (!Number.isInteger(notificationId) || notificationId <= 0) {
+    return { ok: false, error: 'Notification id must be a positive integer.' }
+  }
+  const resolved = await resolveGiteaIssueSource(repoPath, undefined, connectionId, localGitOptions)
+  const repo: GiteaRepoRef | null = resolved.source
+  if (!repo) {
+    return { ok: false, error: 'No Gitea repository found for this repository.' }
+  }
+  if (directGiteaApiToken() === null && !repo.loginName) {
+    return giteaAuthRequiredResult()
+  }
+  const path = `/notifications/threads/${notificationId}?to-status=read`
+  if (giteaWriteUsesTea(repo)) {
+    const marked = await runGiteaTeaCommand(
+      ['api', '-X', 'PATCH', path, ...teaRepoArgs(repo)],
+      localGitOptions,
+      repoPath
+    )
+    return marked.ok ? { ok: true } : marked
+  }
+  return writeGiteaJson(repo, path, 'PATCH', {})
 }

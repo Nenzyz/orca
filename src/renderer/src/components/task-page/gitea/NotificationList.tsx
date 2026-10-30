@@ -1,15 +1,47 @@
 import type { TaskPageComposerActionsModel } from '../use-task-page-composer-actions'
 import { getIntlLocale, translate } from '@/i18n/i18n'
-import { ExternalLink } from 'lucide-react'
+import { Check, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
+import { giteaApiFor } from '@/runtime/gitea-owner-api'
+import { Button } from '@/components/ui/button'
+import type { GiteaNotification } from '../../../../../shared/gitea-types'
+import { giteaTaskRepoSelector } from '../use-task-page-gitea-loading'
 
-const GRID_CLASS = 'grid-cols-[110px_minmax(0,3fr)_minmax(120px,1.2fr)_110px_50px]'
+const GRID_CLASS = 'grid-cols-[110px_minmax(0,3fr)_minmax(120px,1.2fr)_110px_70px]'
 
 export function TaskPageGiteaNotificationList({
   model
 }: {
   model: TaskPageComposerActionsModel
 }): React.JSX.Element | null {
-  const { primaryRepo, giteaNotifications, giteaNotificationsLoading } = model
+  const { primaryRepo, giteaNotifications, giteaNotificationsLoading, setGiteaNotifications } =
+    model
+  // Optimistic: the feed lists unread items only, so a read one leaves it; failure restores the row.
+  const markRead = async (notification: GiteaNotification): Promise<void> => {
+    if (!primaryRepo) {
+      return
+    }
+    setGiteaNotifications((current) => current.filter((entry) => entry.id !== notification.id))
+    const restore = (): void =>
+      setGiteaNotifications((current) =>
+        current.some((entry) => entry.id === notification.id)
+          ? current
+          : [...current, notification].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      )
+    try {
+      const result = await giteaApiFor(giteaTaskRepoSelector(primaryRepo)).markNotificationRead({
+        ...giteaTaskRepoSelector(primaryRepo),
+        notificationId: notification.id
+      })
+      if (!result.ok) {
+        restore()
+        toast.error(result.error)
+      }
+    } catch (error) {
+      restore()
+      toast.error(error instanceof Error ? error.message : String(error))
+    }
+  }
   return (
     <div className="flex min-h-0 max-h-full flex-col rounded-md border border-t-0 border-border/50 bg-muted/50 overflow-hidden rounded-t-none shadow-sm">
       <div
@@ -87,7 +119,23 @@ export function TaskPageGiteaNotificationList({
                   ? new Date(notification.updatedAt).toLocaleDateString(getIntlLocale())
                   : ''}
               </span>
-              <span className="flex justify-end">
+              <span className="flex items-center justify-end gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-6"
+                  aria-label={translate(
+                    'auto.components.TaskPage.giteaMarkNotificationRead',
+                    'Mark as read'
+                  )}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void markRead(notification)
+                  }}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <Check className="size-3.5" />
+                </Button>
                 <ExternalLink className="size-3.5 text-muted-foreground" />
               </span>
             </div>

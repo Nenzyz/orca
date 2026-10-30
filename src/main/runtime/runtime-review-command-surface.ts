@@ -84,6 +84,7 @@ export function installRuntimeReviewCommandSurface(
     listGiteaRepoLabels: giteaQueries.listGiteaRepoLabels.bind(giteaQueries),
     listGiteaRepoAssignableUsers: giteaQueries.listGiteaRepoAssignableUsers.bind(giteaQueries),
     listGiteaRepoNotifications: giteaQueries.listGiteaRepoNotifications.bind(giteaQueries),
+    markGiteaRepoNotificationRead: giteaQueries.markGiteaRepoNotificationRead.bind(giteaQueries),
     getGiteaRepoWorkItemDetails: giteaQueries.getGiteaRepoWorkItemDetails.bind(giteaQueries),
     createGiteaRepoIssue: giteaMutations.createGiteaRepoIssue.bind(giteaMutations),
     updateGiteaRepoIssue: giteaMutations.updateGiteaRepoIssue.bind(giteaMutations),

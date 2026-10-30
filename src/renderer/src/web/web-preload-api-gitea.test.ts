@@ -156,6 +156,12 @@ describe('web Gitea preload API', () => {
         expectedParams: { repoPath, repo: repoPath }
       },
       {
+        key: 'markNotificationRead',
+        invoke: (gitea) => gitea.markNotificationRead({ repoPath, notificationId: 7 }),
+        expectedMethod: 'gitea.markNotificationRead',
+        expectedParams: { repoPath, repo: repoPath, notificationId: 7 }
+      },
+      {
         key: 'workItemDetails',
         invoke: (gitea) =>
           gitea.workItemDetails({
