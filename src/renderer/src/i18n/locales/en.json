@@ -8261,7 +8261,8 @@
           "jiraIssueKeyCasingTitle": "Jira Key Casing",
           "jiraIssueKeyCasingDescription": "Casing of the Jira issue key in the workspace and branch names Orca suggests for new Jira-linked workspaces, such as PROJ-123-fix-login instead of proj-123-fix-login. Existing workspaces and names you type are never changed.",
           "jiraIssueKeyCasingLowercase": "Lowercase",
-          "jiraIssueKeyCasingPreserve": "Uppercase key"
+          "jiraIssueKeyCasingPreserve": "Uppercase key",
+          "giteaBudgetDescription": "Current Gitea CLI REST rate-limit headers and tea login status."
         },
         "HiddenExperimentalGroup": {
           "7c4e18d2f6": "Arms the bold-glitch capture gestures on this machine: {{samplingShortcut}} starts a sampling burst; {{captureShortcut}} captures pane evidence to disk.",
@@ -11501,7 +11502,10 @@
                   "statusNotConfigured": "Not configured",
                   "statusAuthFailed": "Auth failed",
                   "statusConfigured": "Configured",
-                  "statusOptionalSetup": "Optional setup"
+                  "statusOptionalSetup": "Optional setup",
+                  "giteaTeaConnected": "tea CLI: signed in",
+                  "giteaTeaNotAuthenticated": "tea CLI: installed, not signed in. Run tea login add.",
+                  "giteaTeaNotInstalled": "tea CLI: not installed"
                 }
               }
             }
@@ -19010,6 +19014,30 @@
         "closedPr": "Closed PR #{{value0}}",
         "reopenedPr": "Reopened PR #{{value0}}",
         "mergedPr": "Merged PR #{{value0}}"
+      },
+      "gitea": {
+        "gitea": {
+          "rate": {
+            "limit": {
+              "display": {
+                "budgetScopePrefix": "Budget scope",
+                "description": "Orca uses REST through the Gitea CLI (tea).",
+                "envTokenOnly": "tea CLI not installed; using {{value0}}.",
+                "loading": "Loading Gitea API budget...",
+                "noHeaders": "This Gitea host did not return rate-limit headers.",
+                "refresh": "Refresh Gitea API budget",
+                "remainingOfLimit": "{{remaining}} of {{limit}} left, resets in {{reset}}",
+                "rest": "REST API",
+                "teaMissing": "tea CLI is not installed.",
+                "teaSignedIn": "tea CLI is signed in.",
+                "teaSignedInHost": "tea CLI signed in to {{value0}}.",
+                "teaSignedOut": "tea CLI is not signed in. Run tea login add.",
+                "title": "Gitea API Budget",
+                "unavailable": "Gitea API budget is unavailable."
+              }
+            }
+          }
+        }
       }
     },
     "i18n": {
@@ -20905,6 +20933,8 @@
       "authRequiredCommand": "{{providerName}} is not authenticated. Next step: run {{command}} in this environment.",
       "authRequiredVariable": "{{providerName}} is not authenticated. Next step: set {{variable}} in this environment.",
       "authRequiredBitbucket": "Bitbucket is not authenticated. Next step: connect Bitbucket in Settings > Integrations, or set ORCA_BITBUCKET_* in this environment.",
+      "authRequiredGitea": "{{providerName}} is not authenticated. Next step: run {{command}} or set {{variable}} in this environment.",
+      "signInHintGitea": "Run {{command}} or set {{variable}} in this environment",
       "signInHintCommand": "Run {{command}} in this environment",
       "signInHintVariable": "Set {{variable}} in this environment",
       "signInHintBitbucket": "Connect Bitbucket in Settings > Integrations",

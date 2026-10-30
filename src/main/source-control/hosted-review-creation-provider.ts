@@ -35,7 +35,11 @@ async function isGitHubAuthenticated(
       ['auth', 'status', '--hostname', 'github.com'],
       connectionId
         ? { host: 'github.com' }
-        : { cwd: repoPath, ...getHostedReviewLocalGitOptions(options), host: 'github.com' }
+        : {
+            cwd: repoPath,
+            ...getHostedReviewLocalGitOptions(options),
+            host: 'github.com'
+          }
     )
     return true
   } catch {
@@ -95,7 +99,7 @@ export function reviewCopy(provider: HostedReviewProvider): {
       shortLabel: 'PR',
       reviewLabel: 'pull request',
       providerName: 'Gitea',
-      authInstruction: 'Set ORCA_GITEA_TOKEN'
+      authInstruction: 'Run tea login add or set ORCA_GITEA_TOKEN'
     }
   }
   if (provider === 'bitbucket') {
