@@ -1,3 +1,4 @@
+import type { ExecutionHostId } from './execution-host'
 import type { ClassifiedError } from './classified-error'
 import type { CheckStatus, PRMergeableState } from './github/pull-request-types'
 import type { MRComment } from './gitlab-types'
@@ -75,6 +76,8 @@ export type GiteaWorkItem = {
   headSha?: string
   isCrossRepository?: boolean
   repoId: string
+  /** Stamped by the renderer so a twin's two rows keep distinct identities. */
+  repoHostId?: ExecutionHostId
 }
 
 export type GiteaIssueInfo = {

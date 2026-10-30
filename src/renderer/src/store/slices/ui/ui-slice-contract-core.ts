@@ -5,6 +5,7 @@ import type {
 import type { StateCreator } from 'zustand'
 import type { AppState } from '../../types'
 import type { GitHubWorkItem } from '../../../../../shared/github/work-item-types'
+import type { GiteaWorkItem } from '../../../../../shared/gitea-types'
 import type { GitLabWorkItem } from '../../../../../shared/gitlab-types'
 import type { JiraIssue } from '../../../../../shared/jira/jira-types'
 import type { LinearIssue } from '../../../../../shared/linear/issue-types'
@@ -68,6 +69,8 @@ export type TaskPageData = {
   openGitHubInitialTab?: 'conversation' | 'checks' | 'files'
   openGitLabWorkItem?: GitLabWorkItem
   openGitLabSourceContext?: TaskSourceContext | null
+  openGiteaWorkItem?: GiteaWorkItem
+  openGiteaSourceContext?: TaskSourceContext | null
   openLinearIssue?: LinearIssue
   openLinearSourceContext?: TaskSourceContext | null
   openJiraIssue?: JiraIssue

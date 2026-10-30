@@ -3,6 +3,7 @@ import type {
   GitLabIssueFilter
 } from '@/components/task-page/task-page-localized-options'
 import type { GitHubWorkItem } from '../../../../shared/github/work-item-types'
+import type { GiteaWorkItem } from '../../../../shared/gitea-types'
 import type { GitLabProjectRef, GitLabWorkItem } from '../../../../shared/gitlab-types'
 import type { JiraIssue } from '../../../../shared/jira/jira-types'
 import type { Repo } from '../../../../shared/repo-types'
@@ -76,7 +77,7 @@ export function getJiraIssueWorkspaceSeed(issue: JiraIssue): string {
 }
 export function getTaskPageRepoSourceContext(
   repo: Repo | null | undefined,
-  provider: 'github' | 'gitlab',
+  provider: 'github' | 'gitlab' | 'gitea',
   gitlabProjectRef?: GitLabProjectRef | null
 ): TaskSourceContext | null {
   if (!repo) {
@@ -90,7 +91,9 @@ export function getTaskPageRepoSourceContext(
       ? project.providerIdentity
       : provider === 'gitlab' && gitlabProjectRef
         ? buildGitLabProviderIdentity(gitlabProjectRef)
-        : null
+        : provider === 'gitea'
+          ? buildGiteaProviderIdentity(repo)
+          : null
   return normalizeTaskSourceContext({
     provider,
     projectId: setup?.projectId ?? project?.id ?? repo.id,
@@ -99,6 +102,24 @@ export function getTaskPageRepoSourceContext(
     repoId: repo.id,
     providerIdentity
   })
+}
+export function buildGiteaProviderIdentity(repo: Repo) {
+  const [host, ...pathParts] = repo.gitRemoteIdentity?.canonicalKey.split('/') ?? []
+  return {
+    provider: 'gitea' as const,
+    host: host || null,
+    path: pathParts.join('/') || null
+  }
+}
+export function getGiteaWorkItemWorkspaceSeed(item: GiteaWorkItem): string {
+  return (
+    getLinkedWorkItemWorkspaceName({
+      type: item.type,
+      provider: 'gitea',
+      number: item.number,
+      title: item.title
+    })?.seedName ?? getLinkedWorkItemSuggestedName(item)
+  )
 }
 export function buildGitLabProviderIdentity(projectRef: GitLabProjectRef) {
   const pathParts = projectRef.path

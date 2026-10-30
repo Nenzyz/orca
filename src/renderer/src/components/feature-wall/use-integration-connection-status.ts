@@ -1,4 +1,5 @@
 import { useAppStore } from '@/store'
+import { isGiteaReviewConfigured } from '@/lib/gitea-review-configured'
 import { getLocalPreflightContext, localPreflightContextKey } from '@/lib/local-preflight-context'
 import { getProviderRuntimeContextKey } from '@/lib/provider-runtime-context'
 
@@ -112,16 +113,6 @@ function isAzureDevOpsReviewConfigured(status: TokenReviewStatus | undefined): b
     return false
   }
   if (status.tokenConfigured === true && status.baseUrl && status.authenticated !== true) {
-    return false
-  }
-  return true
-}
-
-function isGiteaReviewConfigured(status: TokenReviewStatus | undefined): boolean {
-  if (status?.configured !== true) {
-    return false
-  }
-  if (status.tokenConfigured === true && status.authenticated !== true) {
     return false
   }
   return true

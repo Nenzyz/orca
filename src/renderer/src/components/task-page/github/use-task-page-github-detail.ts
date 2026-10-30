@@ -15,6 +15,7 @@ import {
   getTaskPageRepoCacheInput,
   getTaskPageRepoSourceContext
 } from '../task-page-source-context'
+import { useTaskPageGiteaDetail } from '../gitea/use-task-page-gitea-detail'
 import { startGitHubListScrollRestore } from './task-page-github-list-scroll-restore'
 
 function getTaskPageScrollTop(
@@ -34,6 +35,8 @@ type TaskPageGitHubDetailInput = Pick<
   | 'setGithubMode'
   | 'gitlabDialogItem'
   | 'setGitlabDialogItem'
+  | 'giteaDialogItem'
+  | 'setGiteaDialogItem'
   | 'appliedTaskSearch'
   | 'githubPerRepoPageLimit'
   | 'githubResumeContextKey'
@@ -282,7 +285,7 @@ export function useTaskPageGitHubDetail<Model extends TaskPageGitHubDetailInput>
   nextModel.setDialogWorkItem = setDialogWorkItem
   nextModel.openGitHubDetailPage = openGitHubDetailPage
   nextModel.openGitLabDetailPage = openGitLabDetailPage
-  return nextModel
+  return useTaskPageGiteaDetail(nextModel)
 }
 export type TaskPageGitHubDetailModel = ReturnType<
   typeof useTaskPageGitHubDetail<TaskPageGitHubListStateModel>

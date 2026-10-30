@@ -3159,7 +3159,21 @@
           "linearViewNotFound": "Saved Linear view was not found.",
           "linearViewRestoreFailed": "Failed to restore saved Linear view."
         },
-        "shownCount_one": "{{count}} shown"
+        "shownCount_one": "{{count}} shown",
+        "giteaViewIssues": "Issues",
+        "giteaViewPrs": "PRs",
+        "giteaViewNotifications": "Notifications",
+        "giteaRefreshNotifications": "Refresh notifications",
+        "giteaRefreshWorkItems": "Refresh Gitea work items",
+        "giteaNewIssue": "New issue",
+        "giteaNewIssueTitle": "New Gitea issue",
+        "giteaTypePr": "PR",
+        "startWorkspaceFromPr": "Start workspace from PR {{number}}",
+        "giteaOpenIn": "Open in Gitea",
+        "giteaNotificationType": "Type",
+        "giteaNoNotifications": "No notifications. You’re all caught up!",
+        "giteaSelectProject": "Select a project so we can authenticate to Gitea.",
+        "giteaSource": "Gitea"
       },
       "Terminal": {
         "73768427cf": "Close",
@@ -9221,7 +9235,9 @@
           "integrationsHint": "Credentials for all providers also live under",
           "integrationsLink": "Integrations",
           "skillHint": ". After Linear is connected, usage examples stay under Settings → Linear.",
-          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks."
+          "incompleteBannerBodyWithLinear": "Hide providers you do not use, or expand a card and finish its steps. For Linear: API access, the agent skill, and Show in Tasks.",
+          "giteaLabel": "Gitea",
+          "giteaDescription": "Browse Gitea issues and pull requests and start workspaces from them."
         },
         "TerminalAppearanceSection": {
           "a14a427ae4": "Thickness of the pane divider line.",
@@ -18363,7 +18379,13 @@
         "noGitLabMrsTitle": "No GitLab merge requests",
         "noGitLabMrsDescription": "No GitLab MRs match this filter.",
         "noGitLabWorkTitle": "No GitLab work",
-        "noGitLabWorkDescription": "No GitLab work matches this filter."
+        "noGitLabWorkDescription": "No GitLab work matches this filter.",
+        "noGiteaIssuesTitle": "No Gitea issues",
+        "noGiteaIssuesDescription": "No Gitea issues match this filter.",
+        "noGiteaPrsTitle": "No Gitea pull requests",
+        "noGiteaPrsDescription": "No Gitea pull requests match this filter.",
+        "noGiteaWorkTitle": "No Gitea work",
+        "noGiteaWorkDescription": "No Gitea work matches this filter."
       },
       "taskSourceContextSummary": {
         "sourceUnavailable": "{{value0}} source unavailable: {{value1}}",
@@ -18972,6 +18994,15 @@
         "pluginInstallCount": {
           "installs": "{{value0}} installs"
         }
+      },
+      "GiteaItemDialog": {
+        "retryUnsupported": "Gitea does not support retrying a single job.",
+        "workItemDetail": "Gitea work item detail",
+        "openInGitea": "Open in Gitea",
+        "titleRequired": "Title is required.",
+        "closedPr": "Closed PR #{{value0}}",
+        "reopenedPr": "Reopened PR #{{value0}}",
+        "mergedPr": "Merged PR #{{value0}}"
       }
     },
     "i18n": {
