@@ -43,7 +43,11 @@ export function resolveCreateReviewSeedText({
   jiraIssueKey?: string | null
 }): { title: string; body: string } {
   const reviewJiraIssueKey =
-    eligibility?.provider === 'github' || eligibility?.provider === 'gitlab' ? jiraIssueKey : null
+    eligibility?.provider === 'github' ||
+    eligibility?.provider === 'gitlab' ||
+    eligibility?.provider === 'gitea'
+      ? jiraIssueKey
+      : null
   return {
     title: prefixJiraReviewTitle(
       resolveCreateReviewDraftTitle({
