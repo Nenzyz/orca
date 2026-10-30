@@ -36,6 +36,7 @@ import { resolveRuntimeGiteaWorktreeBase } from './runtime-gitea-worktree-base'
 
 const repo = { id: 'r1', path: '/repo', kind: 'git' }
 const deps = {
+  // SAFETY: the resolver under test never reads the store.
   store: {} as never,
   resolveRepo: vi.fn().mockResolvedValue(repo)
 }

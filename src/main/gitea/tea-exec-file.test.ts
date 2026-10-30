@@ -61,6 +61,7 @@ describe('teaExecFileAsync', () => {
       }
     })
 
+    // SAFETY: the mock is only ever invoked with the options object under test.
     const options = capture.mock.calls[0]?.[2] as { env?: NodeJS.ProcessEnv; stdin?: string }
     expect(options.env?.GITEA_INSTANCE_URL).toBe('https://codeberg.org')
     expect(options.env?.GITEA_TOKEN).toBe('token-value')
@@ -77,6 +78,7 @@ describe('teaExecFileAsync', () => {
       env: { GITEA_TOKEN: 'token-value', WSLENV: 'EXISTING' }
     })
 
+    // SAFETY: the mock is only ever invoked with the options object under test.
     const options = capture.mock.calls[0]?.[2] as { env?: NodeJS.ProcessEnv }
     expect(options.env?.WSLENV).toBe('EXISTING')
   })
@@ -91,6 +93,7 @@ describe('teaExecFileAsync', () => {
       }
     })
 
+    // SAFETY: the mock is only ever invoked with the options object under test.
     const options = capture.mock.calls[0]?.[2] as { env?: NodeJS.ProcessEnv }
     expect(options.env?.GITEA_TOKEN).toBe('orca-token')
     expect(options.env?.GITEA_INSTANCE_URL).toBe('https://git.example.com')

@@ -1,8 +1,14 @@
 import { useCallback } from 'react'
+import { toast } from 'sonner'
 import type { GiteaWorkItem } from '../../../../shared/gitea-types'
 import { toGiteaLinkedWorkItem } from '@/components/sidebar/folder-workspace-composer-helpers'
 import { getLinkedWorkItemSuggestedName, getLinkedWorkItemWorkspaceName } from '@/lib/new-workspace'
 import { shouldApplyWorkspaceSourceAutoName } from '../../../../shared/new-workspace/workspace-source'
+import { runtimeTargetForRepoOwner } from '@/lib/repo-runtime-owner'
+import { callRuntimeRpc } from '@/runtime/runtime-rpc-client'
+import { reviewStartPointErrorText } from '@/lib/code-host-error-copy'
+import { translate } from '@/i18n/i18n'
+import type { GitPushTarget } from '../../../../shared/worktree/types'
 import type { ComposerModel } from './composer-model'
 import type { GitLabProviderSelectionInput } from './gitlab-provider-selection'
 
@@ -27,14 +33,25 @@ type GiteaProviderSelectionInput = Pick<
   | 'setStartFromResetHint'
   | 'smartSourceSelectionRef'
 > &
-  Pick<ComposerModel, 'setLinkedGiteaIssue' | 'setLinkedGiteaPR'>
+  Pick<
+    ComposerModel,
+    | 'eligibleRepos'
+    | 'selectedRepo'
+    | 'setBaseBranch'
+    | 'setLinkedGiteaIssue'
+    | 'setLinkedGiteaPR'
+    | 'setPushTarget'
+  >
 
 export function useGiteaProviderSelection(input: GiteaProviderSelectionInput) {
   const {
     branchAutoNameRef,
+    eligibleRepos,
     lastAutoNameRef,
     linkedWorkItem,
     name,
+    selectedRepo,
+    setBaseBranch,
     setBranchNameOverride,
     setBranchNameOverridePreservesNameEdits,
     setCompareBaseRef,
@@ -48,6 +65,7 @@ export function useGiteaProviderSelection(input: GiteaProviderSelectionInput) {
     setLinkedTaskSourceContext,
     setLinkedWorkItem,
     setName,
+    setPushTarget,
     setStartFromResetHint,
     smartSourceSelectionRef
   } = input
@@ -82,19 +100,95 @@ export function useGiteaProviderSelection(input: GiteaProviderSelectionInput) {
         setName(nextName)
         lastAutoNameRef.current = nextName
       }
-      // Why: a Gitea PR does not resolve its head here, so the workspace starts from the repo's default base.
       setCompareBaseRef(undefined)
       setStartFromResetHint(null)
       setBranchNameOverride(undefined)
       setBranchNameOverridePreservesNameEdits(false)
       setForkPushWarning(null)
       branchAutoNameRef.current = ''
+      const runRepo = selectedRepo ?? eligibleRepos.find((repo) => repo.id === item.repoId)
+      if (item.type !== 'pr' || !runRepo) {
+        return
+      }
+      const target = runtimeTargetForRepoOwner({ repos: [runRepo] }, runRepo.id)
+      if (!target) {
+        return
+      }
+      const startPointSelection = {
+        kind: 'gitea-pr',
+        repoId: runRepo.id,
+        item
+      } as const
+      smartSourceSelectionRef.current = startPointSelection
+      const resolveArgs = {
+        wakeWslDistro: true,
+        ...(item.branchName ? { headRefName: item.branchName } : {}),
+        ...(item.baseRefName ? { baseRefName: item.baseRefName } : {}),
+        ...(item.isCrossRepository !== undefined
+          ? { isCrossRepository: item.isCrossRepository }
+          : {})
+      }
+      // Picking a PR to create from is a user act: it may start the repo's stopped WSL distro.
+      const resolvePrBase =
+        target.kind === 'local'
+          ? window.api.worktrees.resolveGiteaPrBase({
+              repoId: runRepo.id,
+              prNumber: item.number,
+              ...resolveArgs
+            })
+          : callRuntimeRpc<
+              | {
+                  baseBranch: string
+                  compareBaseRef?: string
+                  pushTarget?: GitPushTarget
+                }
+              | { error: string }
+            >(
+              target,
+              'worktree.resolveGiteaPrBase',
+              { repo: runRepo.id, prNumber: item.number, ...resolveArgs },
+              { timeoutMs: 30_000 }
+            )
+      const clearBase = (): void => {
+        setBaseBranch(undefined)
+        setCompareBaseRef(undefined)
+        setPushTarget(undefined)
+      }
+      void resolvePrBase
+        .then((result) => {
+          if (smartSourceSelectionRef.current !== startPointSelection) {
+            return
+          }
+          if ('error' in result) {
+            clearBase()
+            toast.error(reviewStartPointErrorText(result))
+            return
+          }
+          setBaseBranch(result.baseBranch)
+          setCompareBaseRef(result.compareBaseRef)
+          setPushTarget(result.pushTarget)
+        })
+        .catch((error: unknown) => {
+          if (smartSourceSelectionRef.current !== startPointSelection) {
+            return
+          }
+          clearBase()
+          toast.error(
+            error instanceof Error
+              ? error.message
+              : translate('auto.hooks.useComposerState.b2ead86962', 'Failed to resolve PR base.')
+          )
+        })
     },
     [
       branchAutoNameRef,
+      eligibleRepos,
       lastAutoNameRef,
       linkedWorkItem,
       name,
+      selectedRepo,
+      setBaseBranch,
+      setPushTarget,
       setBranchNameOverride,
       setBranchNameOverridePreservesNameEdits,
       setCompareBaseRef,
