@@ -151,6 +151,7 @@ export const WorktreeSet = WorktreeSelector.extend({
   linkedBitbucketPR: TriStateLinkedIssue,
   linkedAzureDevOpsPR: TriStateLinkedIssue,
   linkedGiteaPR: TriStateLinkedIssue,
+  linkedGiteaIssue: TriStateLinkedIssue,
   linkedWorkItem: WorkspaceLinkedItemSchema.nullable().optional(),
   linkedItems: WorkspaceAttachmentsSchema.optional(),
   linkedItemsBase: WorkspaceAttachmentsSchema.optional(),

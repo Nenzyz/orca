@@ -16,7 +16,8 @@ export function useSmartWorkspaceNameFieldController(props: SmartWorkspaceNameFi
     defaultLinearWorkspaceId: 'all',
     typedTextEnabled: true,
     sourceSelected: props.selectedSource !== null,
-    gitlabEnabled: Boolean(props.onGitLabItemSelect)
+    gitlabEnabled: Boolean(props.onGitLabItemSelect),
+    giteaEnabled: Boolean(props.onGiteaItemSelect)
   })
   const focus = useSmartWorkspaceFieldFocusControls({
     props: {

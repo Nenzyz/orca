@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import type { RepoSlug } from '@/lib/github-links'
 import type { GitHubWorkItem } from '../../../../shared/github/work-item-types'
 import type { GitLabWorkItem } from '../../../../shared/gitlab-types'
+import type { GiteaWorkItem } from '../../../../shared/gitea-types'
 import type { JiraIssue } from '../../../../shared/jira/jira-types'
 import type { BaseRefSearchResult } from '../../../../shared/repo-types'
 import type { SmartNameMode } from '../../../../shared/new-workspace/smart-workspace-source-results'
@@ -14,6 +15,7 @@ export function useWorkItemSourceState(textOnly: boolean, value: string) {
   const [debouncedQuery, setDebouncedQuery] = useState(value)
   const [githubItems, setGithubItems] = useState<GitHubWorkItem[]>([])
   const [gitlabItems, setGitlabItems] = useState<GitLabWorkItem[]>([])
+  const [giteaItems, setGiteaItems] = useState<GiteaWorkItem[]>([])
   const [branches, setBranches] = useState<BaseRefSearchResult[]>([])
   const [branchResultsSource, setBranchResultsSource] = useState<{
     repoId: string
@@ -22,6 +24,7 @@ export function useWorkItemSourceState(textOnly: boolean, value: string) {
   const [jiraIssues, setJiraIssues] = useState<JiraIssue[]>([])
   const [githubLoading, setGithubLoading] = useState(false)
   const [gitlabLoading, setGitlabLoading] = useState(false)
+  const [giteaLoading, setGiteaLoading] = useState(false)
   const [branchesLoading, setBranchesLoading] = useState(false)
   const [linearUrlLoadingFeedbackQuery, setLinearUrlLoadingFeedbackQuery] = useState<string | null>(
     null
@@ -43,6 +46,8 @@ export function useWorkItemSourceState(textOnly: boolean, value: string) {
     setGithubItems,
     gitlabItems,
     setGitlabItems,
+    giteaItems,
+    setGiteaItems,
     branches,
     setBranches,
     branchResultsSource,
@@ -53,6 +58,8 @@ export function useWorkItemSourceState(textOnly: boolean, value: string) {
     setGithubLoading,
     gitlabLoading,
     setGitlabLoading,
+    giteaLoading,
+    setGiteaLoading,
     branchesLoading,
     setBranchesLoading,
     linearUrlLoadingFeedbackQuery,

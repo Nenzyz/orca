@@ -3,6 +3,7 @@ import { linearSearchIssuesForTarget, linearStatusForTarget } from '@/runtime/ru
 import { jiraSearchIssuesForTarget, jiraStatusForTarget } from '@/runtime/runtime-jira-client'
 import { ipcOrRuntimeTargetForHostId } from '@/runtime/runtime-client-target'
 import { gitLabApiFor } from '@/runtime/gitlab-owner-api'
+import { createCmdJGiteaTaskSearchRequests } from './gitea-task-search-requests'
 import { resolveJiraSourceHostId } from '../../../../shared/jira/jira-source-host'
 import { getJiraAccountLabel } from '@/lib/jira-account-label'
 import {
@@ -29,7 +30,7 @@ import { makeCmdJTaskSearchResult, type CmdJTaskSearchResult } from './task-sear
 const RESULT_LIMIT = 12
 export type CmdJTaskSearchRequest = {
   id: string
-  provider: TaskProvider
+  provider: TaskProvider | 'gitea'
   hostLabel: string
   run: () => Promise<CmdJTaskSearchResult[]>
 }
@@ -131,6 +132,9 @@ export function createCmdJTaskSearchRequests(args: {
       })
     }
   }
+  requests.push(
+    ...createCmdJGiteaTaskSearchRequests({ query, repos: eligibleRepos, signal, hostLabels })
+  )
   const hostIds = filter.hostIds.length
     ? filter.hostIds
     : filter.repoIds.length
