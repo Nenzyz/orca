@@ -166,6 +166,7 @@ export function updateSettings(
     sanitizedUpdates.visibleTaskProviders = taskProviderSettings.visibleTaskProviders
     if ('visibleTaskProviders' in updates) {
       sanitizedUpdates.visibleTaskProvidersDefaultedForJira = true
+      sanitizedUpdates.visibleTaskProvidersDefaultedForGitea = true
     }
   }
   stampDefaultOnMigrationGuards(updates, sanitizedUpdates)
